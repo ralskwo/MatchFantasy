@@ -126,28 +126,35 @@ class RunState extends ChangeNotifier {
     gold = j['gold'] as int;
     actNumber = j['actNumber'] as int;
     isActive = j['isActive'] as bool;
+    notifyListeners();
+  }
+
+  SharedPreferences? _prefs;
+
+  Future<SharedPreferences> _getPrefs() async {
+    _prefs ??= await SharedPreferences.getInstance();
+    return _prefs!;
   }
 
   Future<void> save() async {
     if (!isActive) return;
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     await prefs.setString(_saveKey, jsonEncode(toSaveJson()));
   }
 
   Future<void> tryLoadSave() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     final raw = prefs.getString(_saveKey);
     if (raw == null) return;
     try {
       fromSaveJson(jsonDecode(raw) as Map<String, dynamic>);
-      notifyListeners();
     } catch (_) {
       await prefs.remove(_saveKey);
     }
   }
 
   Future<void> clearSave() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     await prefs.remove(_saveKey);
   }
 }
