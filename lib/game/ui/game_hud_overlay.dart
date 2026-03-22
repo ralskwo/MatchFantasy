@@ -221,7 +221,7 @@ class GameHudOverlay extends StatelessWidget {
                               IconButton(
                                 icon: const Icon(Icons.pause, color: Colors.white70, size: 20),
                                 tooltip: '일시정지',
-                                onPressed: onPause,
+                                onPressed: hud.isGameOver ? null : onPause,
                               ),
                             ],
                           ),
