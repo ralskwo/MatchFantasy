@@ -105,6 +105,8 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
   final List<_FloatingNumber> _floatingNumbers = <_FloatingNumber>[];
   double _hintTimer = 0;
   double _timeStopRemaining = 0;
+  // ignore: unused_field
+  bool _isManuallyPaused = false;
   bool _isGameOver = false;
   int _score = 0;
   String _statusText = _defaultStatusText;
@@ -126,7 +128,18 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
     await _loadIconAtlases();
   }
 
+  void pauseForOverlay() {
+    _isManuallyPaused = true;
+    pauseEngine();
+  }
+
+  void resumeForOverlay() {
+    _isManuallyPaused = false;
+    resumeEngine();
+  }
+
   void resetSession() {
+    _isManuallyPaused = false;
     final int boardSize = (runState?.hasRelic('ancient_grid_stone') ?? false) ? 7 : 6;
     board = BoardEngine(rows: boardSize, columns: boardSize, random: _random);
     wave = WaveController(
