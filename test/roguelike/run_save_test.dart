@@ -1,6 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:match_fantasy/roguelike/models/map_node.dart';
 import 'package:match_fantasy/roguelike/models/run_map.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:match_fantasy/roguelike/data/classes_data.dart';
+import 'package:match_fantasy/roguelike/data/relics_data.dart';
+import 'package:match_fantasy/roguelike/state/run_state.dart';
 
 void main() {
   group('MapNode serialization', () {
@@ -43,6 +47,47 @@ void main() {
         expect(r.isVisited, entry.value.isVisited);
         expect(r.nextNodeIds, entry.value.nextNodeIds);
       }
+    });
+  });
+
+  group('RunState serialization', () {
+    setUp(() {
+      SharedPreferences.setMockInitialValues({});
+    });
+
+    test('toSaveJson / fromSaveJson round-trip preserves run state', () {
+      final run = RunState();
+      run.startRun(
+        playerClass: allClasses.first,
+        startingRelic: relicById('flame_seal'),
+        runMap: RunMap.generate(seed: 99, actRows: 4),
+      );
+      run.earnGold(50);
+      run.takeDamage(5);
+
+      final json = run.toSaveJson();
+      final restored = RunState();
+      restored.fromSaveJson(json);
+
+      expect(restored.isActive, true);
+      expect(restored.health, run.health);
+      expect(restored.gold, run.gold);
+      expect(restored.selectedClass?.id, run.selectedClass?.id);
+      expect(restored.relics.map((r) => r.id), run.relics.map((r) => r.id));
+      expect(restored.map?.startNodeId, run.map?.startNodeId);
+    });
+
+    test('endRun sets isActive false', () async {
+      SharedPreferences.setMockInitialValues({});
+      final run = RunState();
+      run.startRun(
+        playerClass: allClasses.first,
+        startingRelic: relicById('flame_seal'),
+        runMap: RunMap.generate(seed: 1, actRows: 4),
+      );
+      expect(run.isActive, true);
+      run.endRun();
+      expect(run.isActive, false);
     });
   });
 }

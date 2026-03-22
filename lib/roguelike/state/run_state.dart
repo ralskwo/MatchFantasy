@@ -1,3 +1,9 @@
+import 'dart:async';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:match_fantasy/roguelike/data/classes_data.dart';
+import 'package:match_fantasy/roguelike/data/relics_data.dart';
+import 'package:match_fantasy/roguelike/data/cards_data.dart';
 import 'package:flutter/foundation.dart';
 import 'package:match_fantasy/roguelike/models/player_class.dart';
 import 'package:match_fantasy/roguelike/models/relic.dart';
@@ -86,9 +92,62 @@ class RunState extends ChangeNotifier {
 
   void endRun() {
     isActive = false;
+    unawaited(clearSave());
     notifyListeners();
   }
 
   bool get isDead => health <= 0;
   bool hasRelic(String id) => relics.any((r) => r.id == id);
+
+  static const String _saveKey = 'run_save_v1';
+
+  Map<String, dynamic> toSaveJson() => {
+    'classId': selectedClass!.id.name,
+    'relicIds': relics.map((r) => r.id).toList(),
+    'cardIds': cards.map((c) => c.id).toList(),
+    'map': map!.toJson(),
+    'currentNodeId': currentNodeId,
+    'health': health,
+    'maxHealth': maxHealth,
+    'gold': gold,
+    'actNumber': actNumber,
+    'isActive': isActive,
+  };
+
+  void fromSaveJson(Map<String, dynamic> j) {
+    final classId = PlayerClassId.values.byName(j['classId'] as String);
+    selectedClass = allClasses.firstWhere((c) => c.id == classId);
+    relics = (j['relicIds'] as List).map((id) => relicById(id as String)).toList();
+    cards = (j['cardIds'] as List).map((id) => cardById(id as String)).toList();
+    map = RunMap.fromJson(j['map'] as Map<String, dynamic>);
+    currentNodeId = j['currentNodeId'] as String?;
+    health = j['health'] as int;
+    maxHealth = j['maxHealth'] as int;
+    gold = j['gold'] as int;
+    actNumber = j['actNumber'] as int;
+    isActive = j['isActive'] as bool;
+  }
+
+  Future<void> save() async {
+    if (!isActive) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_saveKey, jsonEncode(toSaveJson()));
+  }
+
+  Future<void> tryLoadSave() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_saveKey);
+    if (raw == null) return;
+    try {
+      fromSaveJson(jsonDecode(raw) as Map<String, dynamic>);
+      notifyListeners();
+    } catch (_) {
+      await prefs.remove(_saveKey);
+    }
+  }
+
+  Future<void> clearSave() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_saveKey);
+  }
 }
