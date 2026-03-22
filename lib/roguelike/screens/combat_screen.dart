@@ -17,6 +17,18 @@ class CombatScreen extends StatefulWidget {
 
 class _CombatScreenState extends State<CombatScreen> {
   late final MatchFantasyGame _game;
+  bool _isPaused = false;
+
+  void _togglePause() {
+    setState(() {
+      _isPaused = !_isPaused;
+      if (_isPaused) {
+        _game.pauseForOverlay();
+      } else {
+        _game.resumeForOverlay();
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -83,13 +95,54 @@ class _CombatScreenState extends State<CombatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return GameWidget<MatchFantasyGame>(
-      game: _game,
-      overlayBuilderMap: {
-        MatchFantasyGame.hudOverlayId:
-            (ctx, game) => GameHudOverlay(game: game),
-      },
-      initialActiveOverlays: const [MatchFantasyGame.hudOverlayId],
+    return Stack(
+      children: [
+        GameWidget<MatchFantasyGame>(
+          game: _game,
+          overlayBuilderMap: {
+            MatchFantasyGame.hudOverlayId: (ctx, game) => IgnorePointer(
+              ignoring: _isPaused,
+              child: GameHudOverlay(
+                game: game,
+                onPause: _togglePause,
+              ),
+            ),
+          },
+          initialActiveOverlays: const [MatchFantasyGame.hudOverlayId],
+        ),
+        if (_isPaused) _PauseOverlay(onResume: _togglePause),
+      ],
+    );
+  }
+}
+
+class _PauseOverlay extends StatelessWidget {
+  const _PauseOverlay({required this.onResume});
+  final VoidCallback onResume;
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: Colors.black.withValues(alpha: 0.6),
+      child: Center(
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('일시정지',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: onResume,
+                  child: const Text('전투 재개'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

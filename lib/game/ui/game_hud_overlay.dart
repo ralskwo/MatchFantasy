@@ -17,9 +17,10 @@ Color _comboColor(int count) {
 }
 
 class GameHudOverlay extends StatelessWidget {
-  const GameHudOverlay({required this.game, super.key});
+  const GameHudOverlay({required this.game, this.onPause, super.key});
 
   final MatchFantasyGame game;
+  final VoidCallback? onPause;
 
   @override
   Widget build(BuildContext context) {
@@ -216,6 +217,11 @@ class GameHudOverlay extends StatelessWidget {
                                         ),
                                       ],
                                     ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.pause, color: Colors.white70, size: 20),
+                                tooltip: '일시정지',
+                                onPressed: onPause,
                               ),
                             ],
                           ),
