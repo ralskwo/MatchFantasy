@@ -75,6 +75,10 @@ void main() {
       expect(restored.selectedClass?.id, run.selectedClass?.id);
       expect(restored.relics.map((r) => r.id), run.relics.map((r) => r.id));
       expect(restored.map?.startNodeId, run.map?.startNodeId);
+      expect(restored.maxHealth, run.maxHealth);
+      expect(restored.currentNodeId, run.currentNodeId);
+      expect(restored.actNumber, run.actNumber);
+      expect(restored.cards.map((c) => c.id), run.cards.map((c) => c.id));
     });
 
     test('endRun sets isActive false', () async {
@@ -88,6 +92,23 @@ void main() {
       expect(run.isActive, true);
       run.endRun();
       expect(run.isActive, false);
+    });
+
+    test('endRun clears persisted save', () async {
+      SharedPreferences.setMockInitialValues({});
+      final run = RunState();
+      run.startRun(
+        playerClass: allClasses.first,
+        startingRelic: relicById('flame_seal'),
+        runMap: RunMap.generate(seed: 2, actRows: 4),
+      );
+      await run.save();
+      final prefsBeforeEnd = await SharedPreferences.getInstance();
+      expect(prefsBeforeEnd.getString('run_save_v1'), isNotNull);
+      run.endRun();
+      await Future.delayed(Duration.zero);
+      final prefsAfterEnd = await SharedPreferences.getInstance();
+      expect(prefsAfterEnd.getString('run_save_v1'), isNull);
     });
   });
 }
