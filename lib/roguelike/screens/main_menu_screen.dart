@@ -44,10 +44,9 @@ class MainMenuScreen extends StatelessWidget {
                 },
               ),
               FilledButton(
-                onPressed: () async {
-                  final run = context.read<RunState>();
-                  await run.clearSave();
-                  if (context.mounted) context.push('/class');
+                onPressed: () {
+                  context.read<RunState>().endRun();
+                  context.push('/class');
                 },
                 child: const Text('새 게임 시작'),
               ),
