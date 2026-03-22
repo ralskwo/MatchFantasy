@@ -60,6 +60,18 @@ class RunMap {
     return RunMap(nodes: nodes, startNodeId: startNode.id);
   }
 
+  Map<String, dynamic> toJson() => {
+        'startNodeId': startNodeId,
+        'nodes': nodes.map((k, v) => MapEntry(k, v.toJson())),
+      };
+
+  factory RunMap.fromJson(Map<String, dynamic> j) => RunMap(
+        startNodeId: j['startNodeId'] as String,
+        nodes: (j['nodes'] as Map<String, dynamic>).map(
+          (k, v) => MapEntry(k, MapNode.fromJson(v as Map<String, dynamic>)),
+        ),
+      );
+
   static NodeType _pickNodeType(Random rng, int row) {
     final roll = rng.nextDouble();
     if (roll < 0.50) return NodeType.combat;
