@@ -132,9 +132,10 @@ class _ShopScreenState extends State<ShopScreen> {
           Padding(
             padding: const EdgeInsets.all(16),
             child: FilledButton(
-              onPressed: () {
+              onPressed: () async {
                 context.read<MetaState>().incrementAchievement('shop_visits');
-                context.go('/map');
+                await context.read<RunState>().save();
+                if (context.mounted) context.go('/map');
               },
               child: const Text('상점 나가기'),
             ),

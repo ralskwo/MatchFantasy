@@ -44,15 +44,20 @@ class _UpgradeScreenState extends State<UpgradeScreen> {
                     ? const Text('덱 가득',
                         style: TextStyle(color: Colors.red))
                     : null,
-                onTap: () {
-                  context.read<RunState>().addCard(card);
-                  context.go('/map');
+                onTap: () async {
+                  final run = context.read<RunState>();
+                  run.addCard(card);
+                  await run.save();
+                  if (context.mounted) context.go('/map');
                 },
               ),
             ),
           )),
           TextButton(
-            onPressed: () => context.go('/map'),
+            onPressed: () async {
+              await context.read<RunState>().save();
+              if (context.mounted) context.go('/map');
+            },
             child: const Text('건너뛰기'),
           ),
         ],

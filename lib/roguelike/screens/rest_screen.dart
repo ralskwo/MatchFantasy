@@ -83,7 +83,10 @@ class _RestScreenState extends State<RestScreen> {
               ),
               const SizedBox(height: 24),
               FilledButton(
-                onPressed: () => context.go('/map'),
+                onPressed: () async {
+                  await context.read<RunState>().save();
+                  if (context.mounted) context.go('/map');
+                },
                 child: const Text('계속하기'),
               ),
             ],
