@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:match_fantasy/roguelike/models/player_class.dart';
 import 'package:match_fantasy/roguelike/state/meta_state.dart';
+import 'package:match_fantasy/roguelike/state/run_state.dart';
 
 class MainMenuScreen extends StatelessWidget {
   const MainMenuScreen({super.key});
@@ -28,8 +29,26 @@ class MainMenuScreen extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 14, color: Colors.amber)),
               const SizedBox(height: 40),
+              Consumer<RunState>(
+                builder: (ctx, run, _) {
+                  if (!run.isActive) return const SizedBox.shrink();
+                  return Column(
+                    children: [
+                      FilledButton(
+                        onPressed: () => context.go('/map'),
+                        child: const Text('이어하기'),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                  );
+                },
+              ),
               FilledButton(
-                onPressed: () => context.push('/class'),
+                onPressed: () async {
+                  final run = context.read<RunState>();
+                  await run.clearSave();
+                  if (context.mounted) context.push('/class');
+                },
                 child: const Text('새 게임 시작'),
               ),
               const SizedBox(height: 32),
