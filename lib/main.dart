@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:match_fantasy/app/match_fantasy_app.dart';
 import 'package:match_fantasy/roguelike/state/meta_state.dart';
+import 'package:match_fantasy/roguelike/state/run_state.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,9 +18,15 @@ Future<void> main() async {
   final meta = MetaState();
   await meta.load();
 
+  final runState = RunState();
+  await runState.tryLoadSave();
+
   runApp(
-    ChangeNotifierProvider.value(
-      value: meta,
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: meta),
+        ChangeNotifierProvider.value(value: runState),
+      ],
       child: const MatchFantasyApp(),
     ),
   );
