@@ -1,11 +1,12 @@
 import 'package:match_fantasy/game/models/block_type.dart';
 
-enum GemSpecialKind { line, nova }
+enum GemSpecialKind { line, nova, cross }
 
 extension GemSpecialKindMetadata on GemSpecialKind {
   String get marker => switch (this) {
     GemSpecialKind.line => 'L',
     GemSpecialKind.nova => 'N',
+    GemSpecialKind.cross => 'X',
   };
 }
 

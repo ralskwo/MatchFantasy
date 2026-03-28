@@ -973,7 +973,14 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
             bonus.element,
             bonus.bonusType == MatchBonusType.nova
                 ? GemSpecialKind.nova
-                : GemSpecialKind.line,
+                : (_findSpecialActivationCell(
+                        move,
+                        bonus.element,
+                        GemSpecialKind.cross,
+                      ) !=
+                        null
+                    ? GemSpecialKind.cross
+                    : GemSpecialKind.line),
           ),
         ),
       );
@@ -1880,9 +1887,11 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
     );
 
     if (tile.isSpecial) {
-      final Color frameColor = tile.special == GemSpecialKind.nova
-          ? const Color(0xFFFFF1A8)
-          : Colors.white;
+      final Color frameColor = switch (tile.special) {
+        GemSpecialKind.nova => const Color(0xFFFFF1A8),
+        GemSpecialKind.cross => const Color(0xFF66FF99),
+        _ => Colors.white,
+      };
       canvas.drawRRect(
         gemFrame,
         Paint()
@@ -1908,6 +1917,29 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
             ..strokeWidth = 2.5
             ..color = Colors.white.withValues(alpha: (0.18 + 0.22 * pulse) * alpha),
         );
+      } else if (tile.special == GemSpecialKind.cross) {
+        canvas.drawCircle(
+          cellRect.center,
+          glowR,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.8
+            ..color = const Color(0xFF66FF99)
+                .withValues(alpha: (0.20 + 0.25 * pulse) * alpha),
+        );
+        // 대각선 4점 dot
+        for (int i = 0; i < 4; i++) {
+          final double angle = _totalTime * 1.8 + i * (math.pi / 2) + math.pi / 4;
+          final Offset dotPos = cellRect.center +
+              Offset(math.cos(angle), math.sin(angle)) * glowR;
+          canvas.drawCircle(
+            dotPos,
+            2.0,
+            Paint()
+              ..color = const Color(0xFF66FF99)
+                  .withValues(alpha: 0.65 * pulse * alpha),
+          );
+        }
       } else {
         canvas.drawCircle(
           cellRect.center,
@@ -2723,9 +2755,11 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
       }
 
       if (burst.specialKind != null) {
-        final Color specialColor = burst.specialKind == GemSpecialKind.nova
-            ? const Color(0xFFFFF1A8)
-            : Colors.white;
+        final Color specialColor = switch (burst.specialKind) {
+          GemSpecialKind.nova => const Color(0xFFFFF1A8),
+          GemSpecialKind.cross => const Color(0xFF66FF99),
+          _ => Colors.white,
+        };
         canvas.drawCircle(
           burst.center,
           ui.lerpDouble(burst.cellSize * 0.3, burst.maxRadius * 1.3, easeT)!,

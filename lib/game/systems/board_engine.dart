@@ -323,9 +323,14 @@ class BoardEngine {
       if (anchor == null) {
         continue;
       }
-      final GemSpecialKind next = group.cells.length >= 5
-          ? GemSpecialKind.nova
-          : GemSpecialKind.line;
+      final GemSpecialKind next;
+      if (group.cells.length >= 5) {
+        next = GemSpecialKind.nova;
+      } else if (_random.nextBool()) {
+        next = GemSpecialKind.cross;
+      } else {
+        next = GemSpecialKind.line;
+      }
       final GemSpecialKind? existing = planned[anchor];
       planned[anchor] = _mergeSpecialKinds(existing, next);
       claimed.add(anchor);
@@ -384,6 +389,9 @@ class BoardEngine {
     if (current == GemSpecialKind.nova || next == GemSpecialKind.nova) {
       return GemSpecialKind.nova;
     }
+    if (current == GemSpecialKind.cross || next == GemSpecialKind.cross) {
+      return GemSpecialKind.cross;
+    }
     return GemSpecialKind.line;
   }
 
@@ -414,9 +422,16 @@ class BoardEngine {
             bonusType: tile.special == GemSpecialKind.nova
                 ? MatchBonusType.nova
                 : MatchBonusType.lineBlast,
-            size: tile.special == GemSpecialKind.nova ? 5 : 4,
-            powerTotal:
-                tile.power + (tile.special == GemSpecialKind.nova ? 10 : 6),
+            size: switch (tile.special) {
+              GemSpecialKind.nova => 5,
+              GemSpecialKind.cross => 3,
+              _ => 4,
+            },
+            powerTotal: tile.power + switch (tile.special) {
+              GemSpecialKind.nova => 10,
+              GemSpecialKind.cross => 4,
+              _ => 6,
+            },
             starCount: tile.isStar ? 1 : 0,
           ),
         );
@@ -444,6 +459,17 @@ class BoardEngine {
         }
         for (int column = 0; column < columns; column++) {
           affected.add(GridPoint(origin.row, column));
+        }
+        break;
+      case GemSpecialKind.cross:
+        for (int dr = -1; dr <= 1; dr++) {
+          for (int dc = -1; dc <= 1; dc++) {
+            final int r = origin.row + dr;
+            final int c = origin.column + dc;
+            if (r >= 0 && r < rows && c >= 0 && c < columns) {
+              affected.add(GridPoint(r, c));
+            }
+          }
         }
         break;
       case GemSpecialKind.nova:
