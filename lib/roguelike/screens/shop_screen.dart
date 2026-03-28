@@ -73,10 +73,10 @@ class _ShopScreenState extends State<ShopScreen> {
   }
 
   int _price(RunState run, int basePrice) {
-    if (run.hasRelic('lucky_coin')) {
-      return (basePrice * 0.9).round();
-    }
-    return basePrice;
+    double multiplier = 1.0;
+    if (run.temporaryShopDiscount) multiplier *= 0.5;
+    if (run.hasRelic('lucky_coin')) multiplier *= 0.9;
+    return (basePrice * multiplier).round();
   }
 
   @override
@@ -84,7 +84,9 @@ class _ShopScreenState extends State<ShopScreen> {
     final run = context.watch<RunState>();
     return Scaffold(
       appBar: AppBar(
-        title: Text('상점  💰 ${run.gold}G'),
+        title: Text(run.temporaryShopDiscount
+            ? '상점 🏷️ 반값 세일!  💰 ${run.gold}G'
+            : '상점  💰 ${run.gold}G'),
         automaticallyImplyLeading: false,
       ),
       body: Column(
@@ -133,8 +135,10 @@ class _ShopScreenState extends State<ShopScreen> {
             padding: const EdgeInsets.all(16),
             child: FilledButton(
               onPressed: () async {
+                final run = context.read<RunState>();
                 context.read<MetaState>().incrementAchievement('shop_visits');
-                await context.read<RunState>().save();
+                run.clearShopDiscount();
+                await run.save();
                 if (context.mounted) context.go('/map');
               },
               child: const Text('상점 나가기'),

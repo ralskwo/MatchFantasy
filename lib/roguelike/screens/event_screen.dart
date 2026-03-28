@@ -57,7 +57,18 @@ class _EventScreenState extends State<EventScreen> {
         break;
       case EventOutcomeType.gainGoldLoseHp:
         if (outcome.value < 0) run.takeDamage(-outcome.value);
-        result = '효과 적용됨';
+        if (outcome.goldBonus > 0) run.earnGold(outcome.goldBonus);
+        result = outcome.goldBonus > 0
+            ? '골드 +${outcome.goldBonus}, HP ${outcome.value}'
+            : '효과 적용됨';
+        break;
+      case EventOutcomeType.shopDiscount:
+        run.applyShopDiscount();
+        result = '다음 상점 방문 시 모든 가격 50% 할인!';
+        break;
+      case EventOutcomeType.gainHp:
+        run.heal(outcome.value);
+        result = 'HP +${outcome.value}';
         break;
     }
 

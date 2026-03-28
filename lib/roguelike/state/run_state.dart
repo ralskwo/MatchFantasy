@@ -23,6 +23,7 @@ class RunState extends ChangeNotifier {
   int gold = 0;
   int actNumber = 1;
   bool isActive = false;
+  bool temporaryShopDiscount = false;
 
   void setSelectedClass(PlayerClass cls) {
     selectedClass = cls;
@@ -44,6 +45,7 @@ class RunState extends ChangeNotifier {
     gold = 20;
     actNumber = 1;
     isActive = true;
+    temporaryShopDiscount = false;
     notifyListeners();
   }
 
@@ -105,6 +107,16 @@ class RunState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void applyShopDiscount() {
+    temporaryShopDiscount = true;
+    notifyListeners();
+  }
+
+  void clearShopDiscount() {
+    temporaryShopDiscount = false;
+    notifyListeners();
+  }
+
   bool get isDead => health <= 0;
   bool hasRelic(String id) => relics.any((r) => r.id == id);
 
@@ -121,6 +133,7 @@ class RunState extends ChangeNotifier {
     'gold': gold,
     'actNumber': actNumber,
     'isActive': isActive,
+    'temporaryShopDiscount': temporaryShopDiscount,
   };
 
   void fromSaveJson(Map<String, dynamic> j) {
@@ -135,6 +148,7 @@ class RunState extends ChangeNotifier {
     gold = j['gold'] as int;
     actNumber = j['actNumber'] as int;
     isActive = j['isActive'] as bool;
+    temporaryShopDiscount = (j['temporaryShopDiscount'] as bool?) ?? false;
     notifyListeners();
   }
 
