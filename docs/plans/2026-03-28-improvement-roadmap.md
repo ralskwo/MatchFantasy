@@ -36,10 +36,10 @@ MatchFantasy의 연출·전략성·콘텐츠를 단계적으로 개선한다.
 ## Phase 1 — 즉시 고품질 효과
 
 ### 1-A. 발사체 시스템 (Projectile Volley)
-- [ ] 구현 완료
+- [x] 구현 완료
 - **브랜치**: `phase1/projectile-system`
 - **Spec**: `docs/superpowers/specs/YYYY-MM-DD-projectile-system.md`
-- **커밋**: —
+- **커밋**: `f809eb5`
 
 **목표**: 공격 연출을 포물선 발사체로 교체해 전투 인과관계 시각화.
 
@@ -76,10 +76,10 @@ class _Projectile {
 ---
 
 ### 1-B. 속성 상성 시스템 (Element Affinity)
-- [ ] 구현 완료
+- [x] 구현 완료
 - **브랜치**: `phase1/element-affinity`
 - **Spec**: `docs/superpowers/specs/YYYY-MM-DD-element-affinity.md`
-- **커밋**: —
+- **커밋**: `f809eb5`
 
 **목표**: 몬스터별 강/약 원소 추가로 전략적 원소 선택 유도.
 
@@ -113,10 +113,10 @@ extension MonsterKindAffinity on MonsterKind {
 ---
 
 ### 1-C. 원소 충전 진행률 시각화
-- [ ] 구현 완료
+- [x] 구현 완료
 - **브랜치**: `phase1/charge-bar-ui`
 - **Spec**: `docs/superpowers/specs/YYYY-MM-DD-charge-bar-ui.md`
-- **커밋**: —
+- **커밋**: `f809eb5`
 
 **목표**: 원소 충전 칩을 숫자에서 progress bar로 교체.
 
@@ -175,10 +175,10 @@ extension MonsterKindAffinity on MonsterKind {
 ---
 
 ### 2-C. 카드 덱 확장 (원소 특화 패시브 5개)
-- [ ] 구현 완료
+- [x] 구현 완료
 - **브랜치**: `phase2/card-deck-expansion`
 - **Spec**: `docs/superpowers/specs/YYYY-MM-DD-card-deck-expansion.md`
-- **커밋**: —
+- **커밋**: `c13ba29`
 
 **목표**: 원소별 특화 패시브 5개 추가로 빌드 다양성 향상.
 
@@ -216,10 +216,10 @@ extension MonsterKindAffinity on MonsterKind {
 ---
 
 ### 3-B. 몬스터 약점 UI
-- [ ] 구현 완료
+- [x] 구현 완료
 - **브랜치**: `phase3/weakness-ui`
 - **Spec**: `docs/superpowers/specs/YYYY-MM-DD-weakness-ui.md`
-- **커밋**: —
+- **커밋**: `f809eb5`
 
 **목표**: 몬스터 아이콘 우상단에 약점 원소 아이콘(14px) 표시.
 
@@ -286,11 +286,11 @@ if (weak != null) {
 
 | 항목 | 상태 | 커밋 |
 |------|------|------|
-| 1-C 충전 진행률 bar | 대기 | — |
-| 1-B 속성 상성 | 대기 | — |
-| 3-B 약점 UI | 대기 | — |
-| 1-A 발사체 시스템 | 대기 | — |
-| 2-C 카드 덱 확장 | 대기 | — |
+| 1-C 충전 진행률 bar | ✅ 완료 | `f809eb5` |
+| 1-B 속성 상성 | ✅ 완료 | `f809eb5` |
+| 3-B 약점 UI | ✅ 완료 | `f809eb5` |
+| 1-A 발사체 시스템 | ✅ 완료 | `f809eb5` |
+| 2-C 카드 덱 확장 | ✅ 완료 | `c13ba29` |
 | 2-A 액티브 충전 | 대기 | — |
 | 2-B Cross Clear | 대기 | — |
 | 3-A Reward 노드 | 대기 | — |
