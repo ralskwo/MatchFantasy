@@ -74,10 +74,11 @@ class RunMap {
 
   static NodeType _pickNodeType(Random rng, int row) {
     final roll = rng.nextDouble();
-    if (roll < 0.50) return NodeType.combat;
-    if (roll < 0.60) return NodeType.elite;
-    if (roll < 0.75) return NodeType.shop;
-    if (roll < 0.90) return NodeType.event;
+    if (roll < 0.40) return NodeType.combat;
+    if (roll < 0.50) return NodeType.elite;
+    if (roll < 0.60) return NodeType.reward;
+    if (roll < 0.73) return NodeType.shop;
+    if (roll < 0.87) return NodeType.event;
     return NodeType.rest;
   }
 }

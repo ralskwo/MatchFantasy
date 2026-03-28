@@ -7,6 +7,7 @@ import 'package:match_fantasy/roguelike/screens/upgrade_screen.dart';
 import 'package:match_fantasy/roguelike/screens/shop_screen.dart';
 import 'package:match_fantasy/roguelike/screens/event_screen.dart';
 import 'package:match_fantasy/roguelike/screens/rest_screen.dart';
+import 'package:match_fantasy/roguelike/screens/reward_screen.dart';
 import 'package:match_fantasy/roguelike/screens/combat_screen.dart';
 
 final appRouter = GoRouter(
@@ -20,6 +21,7 @@ final appRouter = GoRouter(
     GoRoute(path: '/shop',    builder: (ctx, state) => const ShopScreen()),
     GoRoute(path: '/event',   builder: (ctx, state) => const EventScreen()),
     GoRoute(path: '/rest',    builder: (ctx, state) => const RestScreen()),
+    GoRoute(path: '/reward',  builder: (ctx, state) => const RewardScreen()),
     GoRoute(path: '/combat',  builder: (ctx, state) => const CombatScreen()),
   ],
 );

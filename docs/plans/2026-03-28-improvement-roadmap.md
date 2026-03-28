@@ -136,10 +136,10 @@ extension MonsterKindAffinity on MonsterKind {
 ## Phase 2 — 전략성 강화
 
 ### 2-A. 액티브 스킬 충전 시스템
-- [ ] 구현 완료
+- [x] 구현 완료
 - **브랜치**: `phase2/active-skill-recharge`
 - **Spec**: `docs/superpowers/specs/YYYY-MM-DD-active-skill-recharge.md`
-- **커밋**: —
+- **커밋**: `65f34a7`
 
 **목표**: 타일 해소 횟수 기반 충전으로 매치 행동에 스킬 충전 의미 부여.
 
@@ -156,10 +156,10 @@ extension MonsterKindAffinity on MonsterKind {
 ---
 
 ### 2-B. Cross Clear 특수 타일
-- [ ] 구현 완료
+- [x] 구현 완료
 - **브랜치**: `phase2/cross-clear-tile`
 - **Spec**: `docs/superpowers/specs/YYYY-MM-DD-cross-clear-tile.md`
-- **커밋**: —
+- **커밋**: `54f4583`
 
 **목표**: `GemSpecialKind.cross`(3×3 폭발) 추가로 조합 경우의 수 확장.
 
@@ -291,8 +291,8 @@ if (weak != null) {
 | 3-B 약점 UI | ✅ 완료 | `f809eb5` |
 | 1-A 발사체 시스템 | ✅ 완료 | `f809eb5` |
 | 2-C 카드 덱 확장 | ✅ 완료 | `c13ba29` |
-| 2-A 액티브 충전 | 대기 | — |
-| 2-B Cross Clear | 대기 | — |
+| 2-A 액티브 충전 | ✅ 완료 | `65f34a7` |
+| 2-B Cross Clear | ✅ 완료 | `54f4583` |
 | 3-A Reward 노드 | 대기 | — |
 | 3-C 이벤트 확장 | 대기 | — |
 | 4-B 클래스 패시브 | 대기 | — |

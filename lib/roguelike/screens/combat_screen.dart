@@ -94,7 +94,7 @@ class _CombatScreenState extends State<CombatScreen> {
         run.advanceAct();
         context.go('/map');
       } else {
-        context.go('/upgrade');
+        context.go('/reward');
       }
     }
   }

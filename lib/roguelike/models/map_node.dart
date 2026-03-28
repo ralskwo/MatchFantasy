@@ -1,4 +1,4 @@
-enum NodeType { combat, elite, shop, event, rest, boss }
+enum NodeType { combat, elite, shop, event, rest, boss, reward }
 
 class MapNode {
   MapNode({

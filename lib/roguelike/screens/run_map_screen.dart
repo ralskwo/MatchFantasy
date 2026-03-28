@@ -55,6 +55,9 @@ class RunMapScreen extends StatelessWidget {
       case NodeType.rest:
         ctx.push('/rest');
         break;
+      case NodeType.reward:
+        ctx.push('/reward');
+        break;
     }
   }
 
@@ -65,6 +68,7 @@ class RunMapScreen extends StatelessWidget {
     NodeType.event  => '📜',
     NodeType.rest   => '😴',
     NodeType.boss   => '👑',
+    NodeType.reward => '🎁',
   };
 
   String _nodeLabel(NodeType t) => switch (t) {
@@ -74,5 +78,6 @@ class RunMapScreen extends StatelessWidget {
     NodeType.event  => '이벤트',
     NodeType.rest   => '휴식',
     NodeType.boss   => '보스',
+    NodeType.reward => '보상',
   };
 }
