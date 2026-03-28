@@ -3,7 +3,18 @@ import 'dart:math';
 import 'package:match_fantasy/game/models/block_type.dart';
 import 'package:match_fantasy/game/models/board_move_result.dart';
 import 'package:match_fantasy/game/models/combat_cue.dart';
+import 'package:match_fantasy/game/models/monster_state.dart';
 import 'package:match_fantasy/game/systems/wave_controller.dart';
+
+const double _affinityStrongMultiplier = 1.5;
+const double _affinityWeakMultiplier = 0.7;
+
+double _affinityMultiplier(BlockType element, MonsterKind? kind) {
+  if (kind == null) return 1.0;
+  if (kind.weakTo == element) return _affinityStrongMultiplier;
+  if (kind.resistTo == element) return _affinityWeakMultiplier;
+  return 1.0;
+}
 
 class SessionResources {
   SessionResources({required this.maxHealth, required this.maxMana})
@@ -110,10 +121,11 @@ class CombatResolver {
         ),
       );
 
+      final double affinity = _affinityMultiplier(type, wave.frontMonsterKind);
       switch (type) {
         case BlockType.ember:
-          defeated += wave.damageFrontMonster(damage.toDouble());
-          fragments.add('Ember burst $damage');
+          defeated += wave.damageFrontMonster(damage * affinity);
+          fragments.add('Ember burst $damage${affinity > 1.0 ? ' ★' : affinity < 1.0 ? ' ▽' : ''}');
           break;
         case BlockType.tide:
           defeated += wave.damageAll(max(4, damage * 0.7).roundToDouble());
@@ -121,15 +133,15 @@ class CombatResolver {
           fragments.add('Tide burst $damage');
           break;
         case BlockType.bloom:
-          defeated += wave.damageFrontMonster(damage.toDouble());
+          defeated += wave.damageFrontMonster(damage * affinity);
           resources.heal(3 * bursts);
           resources.addShield(2 * bursts);
-          fragments.add('Bloom burst $damage');
+          fragments.add('Bloom burst $damage${affinity > 1.0 ? ' ★' : affinity < 1.0 ? ' ▽' : ''}');
           break;
         case BlockType.spark:
-          defeated += wave.damageFrontMonster(damage.toDouble());
+          defeated += wave.damageFrontMonster(damage * affinity);
           wave.applySlowToAll(factor: 0.5, duration: 2.4 + (0.4 * bursts));
-          fragments.add('Spark burst $damage');
+          fragments.add('Spark burst $damage${affinity > 1.0 ? ' ★' : affinity < 1.0 ? ' ▽' : ''}');
           break;
         case BlockType.umbra:
           defeated += wave.damageAll(damage.toDouble());
@@ -232,6 +244,7 @@ class CombatResolver {
         (isNova ? 14 + (bonus.size * 4) : 8 + (bonus.size * 2)) +
         starPower;
 
+    final double affinity = _affinityMultiplier(bonus.element, wave.frontMonsterKind);
     int magnitude = basePower;
     int defeated = 0;
     switch (bonus.element) {
@@ -239,7 +252,7 @@ class CombatResolver {
         magnitude = isNova ? max(18, (basePower * 0.85).round()) : basePower;
         defeated += isNova
             ? wave.damageAll(magnitude.toDouble())
-            : wave.damageFrontMonster(magnitude.toDouble());
+            : wave.damageFrontMonster(magnitude * affinity);
         break;
       case BlockType.tide:
         magnitude = isNova
@@ -254,7 +267,7 @@ class CombatResolver {
             : max(10, (basePower * 0.85).round());
         defeated += isNova
             ? wave.damageAll(magnitude.toDouble())
-            : wave.damageFrontMonster(magnitude.toDouble());
+            : wave.damageFrontMonster(magnitude * affinity);
         resources.heal(isNova ? 6 : 3);
         resources.addShield(isNova ? 5 : 3);
         break;
@@ -262,7 +275,7 @@ class CombatResolver {
         magnitude = isNova ? max(14, (basePower * 0.68).round()) : basePower;
         defeated += isNova
             ? wave.damageAll(magnitude.toDouble())
-            : wave.damageFrontMonster(magnitude.toDouble());
+            : wave.damageFrontMonster(magnitude * affinity);
         wave.applySlowToAll(
           factor: isNova ? 0.46 : 0.68,
           duration: isNova ? 2.8 : 1.9,

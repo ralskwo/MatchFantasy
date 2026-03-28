@@ -1,3 +1,5 @@
+import 'package:match_fantasy/game/models/block_type.dart';
+
 enum MonsterKind { grunt, runner, brute, boss }
 
 extension MonsterKindStats on MonsterKind {
@@ -55,6 +57,22 @@ extension MonsterKindStats on MonsterKind {
     MonsterKind.runner => 'R',
     MonsterKind.brute => 'B',
     MonsterKind.boss => 'X',
+  };
+}
+
+extension MonsterKindAffinity on MonsterKind {
+  BlockType? get weakTo => switch (this) {
+    MonsterKind.grunt  => BlockType.ember,
+    MonsterKind.runner => BlockType.spark,
+    MonsterKind.brute  => BlockType.tide,
+    MonsterKind.boss   => null,
+  };
+
+  BlockType? get resistTo => switch (this) {
+    MonsterKind.grunt  => BlockType.umbra,
+    MonsterKind.runner => BlockType.bloom,
+    MonsterKind.brute  => BlockType.ember,
+    MonsterKind.boss   => null,
   };
 }
 

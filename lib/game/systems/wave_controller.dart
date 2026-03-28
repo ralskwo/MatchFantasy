@@ -152,6 +152,11 @@ class WaveController {
     }
   }
 
+  MonsterKind? get frontMonsterKind => _frontMonster()?.kind;
+
+  bool get hasAnySlowed =>
+      monsters.any((MonsterState m) => m.slowTimer > 0);
+
   MonsterState? _frontMonster() {
     if (monsters.isEmpty) {
       return null;

@@ -427,40 +427,106 @@ class _StatChip extends StatelessWidget {
   }
 }
 
-class _ChargeChip extends StatelessWidget {
+class _ChargeChip extends StatefulWidget {
   const _ChargeChip({required this.type, required this.charge});
 
   final BlockType type;
   final int charge;
 
   @override
+  State<_ChargeChip> createState() => _ChargeChipState();
+}
+
+class _ChargeChipState extends State<_ChargeChip>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+    _pulseAnim = Tween<double>(begin: 0.55, end: 1.0).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+    if (widget.charge >= 10) {
+      _pulseController.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void didUpdateWidget(_ChargeChip oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.charge >= 10 && !_pulseController.isAnimating) {
+      _pulseController.repeat(reverse: true);
+    } else if (widget.charge < 10 && _pulseController.isAnimating) {
+      _pulseController.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xAA091827),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: GamePalette.block(type).withValues(alpha: 0.4),
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Image.asset(type.iconAsset, width: 16, height: 16),
-            const SizedBox(width: 6),
-            Text(
-              '${type.label} $charge/10',
-              style: TextStyle(
-                color: GamePalette.block(type),
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-              ),
+    final bool ready = widget.charge >= 10;
+    final Color elementColor = GamePalette.block(widget.type);
+    final Color barColor = ready ? Colors.amber : elementColor;
+
+    return AnimatedBuilder(
+      animation: _pulseAnim,
+      builder: (context, _) {
+        final double borderAlpha = ready ? _pulseAnim.value * 0.9 : 0.4;
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            color: const Color(0xAA091827),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: barColor.withValues(alpha: borderAlpha),
+              width: ready ? 1.5 : 1.0,
             ),
-          ],
-        ),
-      ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Image.asset(widget.type.iconAsset, width: 20, height: 20),
+                const SizedBox(height: 4),
+                SizedBox(
+                  width: 30,
+                  height: 4,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(2),
+                    child: LinearProgressIndicator(
+                      value: (widget.charge / 10.0).clamp(0.0, 1.0),
+                      backgroundColor: Colors.white12,
+                      color: barColor,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '${widget.charge}',
+                  style: TextStyle(
+                    color: ready
+                        ? Colors.amber
+                        : elementColor.withValues(alpha: 0.85),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

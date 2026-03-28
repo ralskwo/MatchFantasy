@@ -22,6 +22,7 @@ import 'package:match_fantasy/game/systems/combat_resolver.dart';
 import 'package:match_fantasy/game/systems/wave_controller.dart';
 import 'package:match_fantasy/game/ui/game_palette.dart';
 import 'package:match_fantasy/game/models/layout_mode.dart';
+import 'package:match_fantasy/roguelike/models/upgrade_card.dart';
 import 'package:match_fantasy/roguelike/state/run_state.dart';
 import 'package:match_fantasy/roguelike/systems/class_passive_applier.dart';
 import 'package:match_fantasy/roguelike/systems/relic_effect_applier.dart';
@@ -44,6 +45,7 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
   int _killCount = 0;
   int _comboCount = 0;   // 현재 스왑의 캐스케이드 콤보 수
   int _peakCombo = 0;    // 이번 스왑 최대 콤보 (HUD 표시용)
+  BlockType? _lastBurstElement;  // 직전 버스트 원소 (emberChain 카드용)
   double _shakeIntensity = 0.0;
   double _shakeTimer = 0.0;
 
@@ -103,6 +105,10 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
   final List<_BoardSpecialEffect> _boardSpecialEffects =
       <_BoardSpecialEffect>[];
   final List<_FloatingNumber> _floatingNumbers = <_FloatingNumber>[];
+  final List<_ClearBurst> _clearBursts = <_ClearBurst>[];
+  final List<_SynergyBanner> _synergyBanners = <_SynergyBanner>[];
+  final List<_Projectile> _projectiles = <_Projectile>[];
+  double _totalTime = 0.0;
   double _hintTimer = 0;
   double _timeStopRemaining = 0;
   bool _isGameOver = false;
@@ -135,12 +141,13 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
   }
 
   void resetSession() {
+    final int actNumber = runState?.actNumber ?? 1;
     final int boardSize = (runState?.hasRelic('ancient_grid_stone') ?? false) ? 7 : 6;
     board = BoardEngine(rows: boardSize, columns: boardSize, random: _random);
     wave = WaveController(
       random: _random,
-      healthMultiplier: _difficulty.waveHealthMultiplier,
-      speedMultiplier: _difficulty.waveSpeedMultiplier,
+      healthMultiplier: _difficulty.waveHealthMultiplier * (1.0 + (actNumber - 1) * 0.25),
+      speedMultiplier: _difficulty.waveSpeedMultiplier * (1.0 + (actNumber - 1) * 0.10),
       spawnIntervalMultiplier: _difficulty.spawnIntervalMultiplier,
     );
     resources = SessionResources(
@@ -166,6 +173,9 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
     _boardAnimations.clear();
     _boardSpecialEffects.clear();
     _floatingNumbers.clear();
+    _clearBursts.clear();
+    _synergyBanners.clear();
+    _projectiles.clear();
     _hintTimer = 0;
     _timeStopRemaining = 0;
     _score = 0;
@@ -186,6 +196,7 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
     resumeEngine();
     if (runState != null) {
       RelicEffectApplier.applyOnCombatStart(runState!, resources);
+      RelicEffectApplier.applyCardEffectsOnCombatStart(runState!, resources);
     }
     _publishHud();
   }
@@ -330,6 +341,7 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
   @override
   void update(double dt) {
     super.update(dt);
+    _totalTime += dt;
     _updateVisuals(dt);
 
     if (_isGameOver) {
@@ -436,7 +448,8 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
       return;
     }
 
-    final BoardMoveResult move = board.trySwap(_selectedCell!, tappedCell);
+    final GridPoint swapA = _selectedCell!;
+    final BoardMoveResult move = board.trySwap(swapA, tappedCell);
     _selectedCell = null;
 
     if (!move.isValid) {
@@ -445,7 +458,19 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
       return;
     }
 
-    _applyBoardResult(move, sourceLabel: 'Match');
+    GemSpecialKind? synergyKindA;
+    GemSpecialKind? synergyKindB;
+    if (move.initialBoard.isNotEmpty) {
+      synergyKindA = move.initialBoard[swapA.row][swapA.column].special;
+      synergyKindB = move.initialBoard[tappedCell.row][tappedCell.column].special;
+    }
+
+    _applyBoardResult(
+      move,
+      sourceLabel: 'Match',
+      synergyKindA: synergyKindA,
+      synergyKindB: synergyKindB,
+    );
   }
 
   // ── Drag-to-swap ──────────────────────────────────────────────────────────
@@ -550,7 +575,19 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
       return;
     }
 
-    _applyBoardResult(move, sourceLabel: 'Match');
+    GemSpecialKind? synergyKindA;
+    GemSpecialKind? synergyKindB;
+    if (move.initialBoard.isNotEmpty) {
+      synergyKindA = move.initialBoard[startCell.row][startCell.column].special;
+      synergyKindB = move.initialBoard[targetCell.row][targetCell.column].special;
+    }
+
+    _applyBoardResult(
+      move,
+      sourceLabel: 'Match',
+      synergyKindA: synergyKindA,
+      synergyKindB: synergyKindB,
+    );
   }
 
   @override
@@ -563,18 +600,29 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
       canvas.translate(dx, dy);
       _drawBackground(canvas);
       _drawBattlefield(canvas);
+      _drawProjectiles(canvas);
       _drawBoard(canvas);
+      _drawClearBursts(canvas);
+      _drawSynergyBanners(canvas);
       canvas.restore();
       _drawFloatingNumbers(canvas);
     } else {
       _drawBackground(canvas);
       _drawBattlefield(canvas);
+      _drawProjectiles(canvas);
       _drawBoard(canvas);
+      _drawClearBursts(canvas);
+      _drawSynergyBanners(canvas);
       _drawFloatingNumbers(canvas);
     }
   }
 
-  void _applyBoardResult(BoardMoveResult move, {required String sourceLabel}) {
+  void _applyBoardResult(
+    BoardMoveResult move, {
+    required String sourceLabel,
+    GemSpecialKind? synergyKindA,
+    GemSpecialKind? synergyKindB,
+  }) {
     // 캐스케이드 수만큼 콤보 누적
     final int cascadeSteps = move.cascadeBoards.length;
     if (cascadeSteps > 0) {
@@ -599,6 +647,37 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
         duration: highCombo ? 0.25 : 0.18,
       );
     }
+    if (synergyKindA != null && synergyKindB != null) {
+      final bool hasNova = synergyKindA == GemSpecialKind.nova ||
+          synergyKindB == GemSpecialKind.nova;
+      final bool bothNova = synergyKindA == GemSpecialKind.nova &&
+          synergyKindB == GemSpecialKind.nova;
+      final String synergyLabel = bothNova
+          ? '★ NOVA × NOVA ★'
+          : hasNova
+              ? 'LINE × NOVA'
+              : 'LINE × LINE';
+      final Color colorA = move.matchBonuses.isNotEmpty
+          ? GamePalette.block(move.matchBonuses.first.element)
+          : GamePalette.accent;
+      final Color colorB = move.matchBonuses.length >= 2
+          ? GamePalette.block(move.matchBonuses[1].element)
+          : colorA;
+      final Color combined = hasNova
+          ? const Color(0xFFFFF1A8)
+          : Color.lerp(colorA, colorB, 0.5) ?? colorA;
+      final bool bothLine = synergyKindA == GemSpecialKind.line &&
+          synergyKindB == GemSpecialKind.line;
+      final double shakeI = bothNova ? 10.0 : bothLine ? 5.0 : 7.0;
+      final double pulseI = bothNova ? 2.2 : bothLine ? 1.4 : 1.8;
+      _synergyBanners.add(
+        _SynergyBanner(label: synergyLabel, colorA: colorA, colorB: colorB),
+      );
+      _boardPulses.add(
+        _BoardPulse(color: combined, duration: 0.55, intensity: pulseI),
+      );
+      _triggerShake(intensity: shakeI, duration: 0.28);
+    }
     for (final CombatCue cue in summary.cues) {
       if (cue.kind == CombatCueKind.elementBurst) {
         final Rect battleRect = _battlefieldRect();
@@ -622,9 +701,55 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
     if (runState != null && summary.defeatedMonsters > 0) {
       RelicEffectApplier.applyOnKill(runState!, resources);
     }
+    if (runState != null) {
+      _applyCardPassiveCues(summary.cues, summary.defeatedMonsters);
+    }
     _statusText = summary.statusText;
     _publishHud();
     _fireMeteorIfReady();
+  }
+
+  void _applyCardPassiveCues(List<CombatCue> cues, int defeated) {
+    if (runState == null) return;
+    for (final CombatCue cue in cues) {
+      if (cue.kind != CombatCueKind.elementBurst) continue;
+      final BlockType? element = cue.element;
+      if (element == null) continue;
+
+      // umbraReap: Umbra 버스트 처치 시 마나 +5
+      if (element == BlockType.umbra && defeated > 0) {
+        for (final card in runState!.cards) {
+          if (card.kind == CardKind.passive &&
+              card.effect.tag == CardEffectTag.umbraReap) {
+            resources.addMana(card.effect.value.toInt());
+          }
+        }
+      }
+
+      // emberChain / sparkOverload: Spark 버스트에 추가 데미지 적용
+      if (element == BlockType.spark) {
+        double extraMultiplier = 0.0;
+        for (final card in runState!.cards) {
+          if (card.kind != CardKind.passive) continue;
+          if (card.effect.tag == CardEffectTag.emberChain &&
+              _lastBurstElement == BlockType.ember) {
+            extraMultiplier += card.effect.value;
+          }
+          if (card.effect.tag == CardEffectTag.sparkOverload &&
+              wave.hasAnySlowed) {
+            extraMultiplier += card.effect.value;
+          }
+        }
+        if (extraMultiplier > 0) {
+          final int bonusDamage = (cue.magnitude * extraMultiplier).round();
+          if (bonusDamage > 0) {
+            _killCount += wave.damageFrontMonster(bonusDamage.toDouble());
+          }
+        }
+      }
+
+      _lastBurstElement = element;
+    }
   }
 
   void _fireMeteorIfReady() {
@@ -714,6 +839,27 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
         _boardSpecialEffects.removeAt(index);
       }
     }
+
+    for (int index = _clearBursts.length - 1; index >= 0; index--) {
+      _clearBursts[index].elapsed += dt;
+      if (_clearBursts[index].elapsed >= _clearBursts[index].duration) {
+        _clearBursts.removeAt(index);
+      }
+    }
+
+    for (int index = _synergyBanners.length - 1; index >= 0; index--) {
+      _synergyBanners[index].elapsed += dt;
+      if (_synergyBanners[index].elapsed >= _SynergyBanner.duration) {
+        _synergyBanners.removeAt(index);
+      }
+    }
+
+    for (int index = _projectiles.length - 1; index >= 0; index--) {
+      _projectiles[index].elapsed += dt;
+      if (_projectiles[index].isDone) {
+        _projectiles.removeAt(index);
+      }
+    }
   }
 
   void _queueBoardFeedback(BoardMoveResult move) {
@@ -744,13 +890,37 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
           element: bonus.element,
           bonusType: bonus.bonusType,
           duration: bonus.bonusType == MatchBonusType.nova ? 0.88 : 0.62,
+          activationCell: _findSpecialActivationCell(
+            move,
+            bonus.element,
+            bonus.bonusType == MatchBonusType.nova
+                ? GemSpecialKind.nova
+                : GemSpecialKind.line,
+          ),
         ),
       );
     }
   }
 
   void _queueBoardAnimation(BoardMoveResult move) {
-    _boardAnimations.addAll(_buildBoardAnimations(move));
+    final List<_BoardAnimation> animations = _buildBoardAnimations(move);
+    _boardAnimations.addAll(animations);
+    final _BoardGeometry geometry = _boardGeometry();
+    for (final _BoardAnimation anim in animations) {
+      for (final _AnimatedGem gem in anim.gems) {
+        if (gem.kind != _AnimatedGemKind.clear) continue;
+        _clearBursts.add(_ClearBurst(
+          center: Offset(
+            geometry.grid.left + (gem.fromColumn + 0.5) * geometry.cellSize,
+            geometry.grid.top + (gem.fromRow + 0.5) * geometry.cellSize,
+          ),
+          color: GamePalette.block(gem.tile.type),
+          cellSize: geometry.cellSize,
+          isStar: gem.tile.isStar,
+          specialKind: gem.tile.special,
+        ));
+      }
+    }
   }
 
   List<_BoardAnimation> _buildBoardAnimations(BoardMoveResult move) {
@@ -986,6 +1156,29 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
               starBoost: cue.starBoost,
             ),
           );
+          if (_projectiles.length < 8) {
+            final _BoardGeometry geo = _boardGeometry();
+            final Rect battleRect = _battlefieldRect();
+            final Offset startPos = Offset(geo.grid.center.dx, geo.grid.bottom);
+            final MonsterState? target = wave.monsters.isEmpty
+                ? null
+                : wave.monsters.reduce(
+                    (a, b) => a.progress > b.progress ? a : b);
+            final Offset targetPos = target != null
+                ? Offset(
+                    battleRect.left + target.progress * battleRect.width,
+                    battleRect.top +
+                        battleRect.height * (0.3 + target.lane * 0.25),
+                  )
+                : Offset(battleRect.center.dx, battleRect.center.dy);
+            _projectiles.add(_Projectile(
+              startPos: startPos,
+              targetPos: targetPos,
+              color: GamePalette.block(cue.element!),
+              arcHeight: geo.cellSize * 0.9,
+              duration: 0.35,
+            ));
+          }
           break;
       }
     }
@@ -1249,6 +1442,23 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
         );
 
         _drawMonsterIcon(canvas, monster.kind, bodyRect.deflate(scale * 0.14));
+
+        final BlockType? weakElement = monster.kind.weakTo;
+        if (weakElement != null) {
+          final double badgeSize = scale * 0.38;
+          final Rect badgeRect = Rect.fromLTWH(
+            bodyRect.right - badgeSize + scale * 0.08,
+            bodyRect.top - scale * 0.08,
+            badgeSize,
+            badgeSize,
+          );
+          canvas.drawCircle(
+            badgeRect.center,
+            badgeSize * 0.58,
+            Paint()..color = const Color(0xCC0B1828),
+          );
+          _drawElementIcon(canvas, weakElement, badgeRect.deflate(badgeSize * 0.08), alpha: 0.92);
+        }
       }
     }
 
@@ -1609,6 +1819,40 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
           ..strokeWidth = 1.6
           ..color = GamePalette.block(tile.type).withValues(alpha: 0.7 * alpha),
       );
+      final double pulse = math.sin(_totalTime * 2.8) * 0.5 + 0.5;
+      final double glowR = geometry.cellSize * (0.44 + pulse * 0.05);
+      if (tile.special == GemSpecialKind.line) {
+        canvas.drawCircle(
+          cellRect.center,
+          glowR,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.5
+            ..color = Colors.white.withValues(alpha: (0.18 + 0.22 * pulse) * alpha),
+        );
+      } else {
+        canvas.drawCircle(
+          cellRect.center,
+          glowR,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 3.0
+            ..color = const Color(0xFFFFF1A8)
+                .withValues(alpha: (0.22 + 0.28 * pulse) * alpha),
+        );
+        for (int i = 0; i < 4; i++) {
+          final double angle = _totalTime * 1.5 + i * (math.pi / 2);
+          final Offset dotPos = cellRect.center +
+              Offset(math.cos(angle), math.sin(angle)) * glowR;
+          canvas.drawCircle(
+            dotPos,
+            2.5,
+            Paint()
+              ..color = const Color(0xFFFFF1A8)
+                  .withValues(alpha: 0.7 * pulse * alpha),
+          );
+        }
+      }
     }
 
     if (isHinted) {
@@ -1663,14 +1907,14 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
     }
 
     if (tile.special != null) {
-      _drawText(
-        canvas,
-        tile.special!.marker,
-        Offset(gemRect.left + 8, gemRect.bottom - 16),
-        color: const Color(0xFFF7FBFF).withValues(alpha: alpha),
-        fontSize: geometry.cellSize * 0.18 * scale,
-        fontWeight: FontWeight.w900,
+      final double badgeSize = geometry.cellSize * 0.30;
+      final Rect badgeRect = Rect.fromLTWH(
+        gemRect.left + 2,
+        gemRect.bottom - badgeSize - 2,
+        badgeSize,
+        badgeSize,
       );
+      _drawElementIcon(canvas, tile.type, badgeRect, alpha: alpha * 0.95);
     }
   }
 
@@ -1826,29 +2070,81 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
 
       switch (effect.bonusType) {
         case MatchBonusType.lineBlast:
-          final double sweepY = ui.lerpDouble(
-            geometry.grid.top + geometry.cellSize,
-            geometry.grid.bottom - geometry.cellSize,
-            reveal,
-          )!;
-          canvas.drawLine(
-            Offset(geometry.grid.left + 10, sweepY),
-            Offset(geometry.grid.right - 10, sweepY),
-            Paint()
-              ..color = GamePalette.block(
-                effect.element,
-              ).withValues(alpha: 0.8 * fade)
-              ..strokeWidth = 3.5,
-          );
+          if (effect.activationCell != null) {
+            final double cx = geometry.grid.left +
+                (effect.activationCell!.column + 0.5) * geometry.cellSize;
+            final double cy = geometry.grid.top +
+                (effect.activationCell!.row + 0.5) * geometry.cellSize;
+            final double hLeft =
+                ui.lerpDouble(cx, geometry.grid.left + 10, reveal)!;
+            final double hRight =
+                ui.lerpDouble(cx, geometry.grid.right - 10, reveal)!;
+            canvas.drawLine(
+              Offset(hLeft, cy),
+              Offset(hRight, cy),
+              Paint()
+                ..color = GamePalette.block(effect.element)
+                    .withValues(alpha: 0.85 * fade)
+                ..strokeWidth = 4.0,
+            );
+            final double vTop =
+                ui.lerpDouble(cy, geometry.grid.top + 10, reveal)!;
+            final double vBottom =
+                ui.lerpDouble(cy, geometry.grid.bottom - 10, reveal)!;
+            canvas.drawLine(
+              Offset(cx, vTop),
+              Offset(cx, vBottom),
+              Paint()
+                ..color = GamePalette.block(effect.element)
+                    .withValues(alpha: 0.85 * fade)
+                ..strokeWidth = 4.0,
+            );
+            final double sweepY = ui.lerpDouble(
+              geometry.grid.top + geometry.cellSize,
+              geometry.grid.bottom - geometry.cellSize,
+              reveal,
+            )!;
+            canvas.drawLine(
+              Offset(geometry.grid.left + 10, sweepY),
+              Offset(geometry.grid.right - 10, sweepY),
+              Paint()
+                ..color = GamePalette.block(effect.element)
+                    .withValues(alpha: 0.32 * fade)
+                ..strokeWidth = 2.0,
+            );
+          } else {
+            final double sweepY = ui.lerpDouble(
+              geometry.grid.top + geometry.cellSize,
+              geometry.grid.bottom - geometry.cellSize,
+              reveal,
+            )!;
+            canvas.drawLine(
+              Offset(geometry.grid.left + 10, sweepY),
+              Offset(geometry.grid.right - 10, sweepY),
+              Paint()
+                ..color = GamePalette.block(
+                  effect.element,
+                ).withValues(alpha: 0.8 * fade)
+                ..strokeWidth = 3.5,
+            );
+          }
           break;
         case MatchBonusType.nova:
-          final double radius = ui.lerpDouble(
-            20,
-            geometry.grid.shortestSide * 0.42,
-            reveal,
-          )!;
+          final Offset novaCenter = effect.activationCell != null
+              ? Offset(
+                  geometry.grid.left +
+                      (effect.activationCell!.column + 0.5) *
+                          geometry.cellSize,
+                  geometry.grid.top +
+                      (effect.activationCell!.row + 0.5) * geometry.cellSize,
+                )
+              : geometry.grid.center;
+          final double maxR = effect.activationCell != null
+              ? geometry.grid.longestSide * 0.6
+              : geometry.grid.shortestSide * 0.42;
+          final double radius = ui.lerpDouble(20, maxR, reveal)!;
           canvas.drawCircle(
-            geometry.grid.center,
+            novaCenter,
             radius,
             Paint()
               ..style = PaintingStyle.stroke
@@ -1858,7 +2154,7 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
               ).withValues(alpha: 0.65 * fade),
           );
           canvas.drawCircle(
-            geometry.grid.center,
+            novaCenter,
             radius * 0.55,
             Paint()
               ..color = GamePalette.block(
@@ -2249,6 +2545,144 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
     );
   }
 
+  GridPoint? _findSpecialActivationCell(
+    BoardMoveResult move,
+    BlockType element,
+    GemSpecialKind kind,
+  ) {
+    if (move.beforeBoard.isEmpty || move.afterBoard.isEmpty) return null;
+    for (int r = 0; r < board.rows; r++) {
+      for (int c = 0; c < board.columns; c++) {
+        final GemTile tile = move.beforeBoard[r][c];
+        if (tile.type == element && tile.special == kind) {
+          final bool consumed = move.afterBoard
+              .every((List<GemTile> row) => row.every((GemTile t) => t.id != tile.id));
+          if (consumed) return GridPoint(r, c);
+        }
+      }
+    }
+    return null;
+  }
+
+  void _drawProjectiles(Canvas canvas) {
+    if (_projectiles.isEmpty) return;
+    for (final _Projectile proj in _projectiles) {
+      final Offset pos = proj.currentPos;
+      final double a = proj.alpha;
+      // 발광 원 (outer glow)
+      canvas.drawCircle(
+        pos,
+        7.0,
+        Paint()..color = proj.color.withValues(alpha: 0.25 * a),
+      );
+      // 코어
+      canvas.drawCircle(
+        pos,
+        4.5,
+        Paint()..color = proj.color.withValues(alpha: 0.9 * a),
+      );
+      // trail (3 dots)
+      for (int i = 1; i <= 3; i++) {
+        final double trailT =
+            ((proj.elapsed - i * 0.025) / proj.duration).clamp(0.0, 1.0);
+        final Offset linear = Offset.lerp(proj.startPos, proj.targetPos, trailT)!;
+        final Offset trailPos =
+            linear + Offset(0, -proj.arcHeight * 4 * trailT * (1 - trailT));
+        canvas.drawCircle(
+          trailPos,
+          3.0 - i * 0.6,
+          Paint()..color = proj.color.withValues(alpha: (0.4 - i * 0.1) * a),
+        );
+      }
+    }
+  }
+
+  void _drawClearBursts(Canvas canvas) {
+    if (_clearBursts.isEmpty) return;
+    for (final _ClearBurst burst in _clearBursts) {
+      final double t = burst.t;
+      final double fade = 1.0 - t;
+      final double easeT = Curves.easeOut.transform(t);
+
+      canvas.drawCircle(
+        burst.center,
+        burst.cellSize * 0.3 * (1.0 - t) * 1.5,
+        Paint()..color = Colors.white.withValues(alpha: 0.80 * fade),
+      );
+
+      final double ringRadius =
+          ui.lerpDouble(burst.cellSize * 0.2, burst.maxRadius, easeT)!;
+      canvas.drawCircle(
+        burst.center,
+        ringRadius,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.0
+          ..color = burst.color.withValues(alpha: 0.75 * fade),
+      );
+
+      for (int i = 0; i < burst.particleCount; i++) {
+        final double angle = i * 2.0 * math.pi / burst.particleCount;
+        final double dist = ui.lerpDouble(0.0, burst.maxRadius, easeT)!;
+        final Offset particlePos = burst.center +
+            Offset(math.cos(angle) * dist, math.sin(angle) * dist);
+        canvas.drawCircle(
+          particlePos,
+          3.0 * fade,
+          Paint()..color = burst.color.withValues(alpha: fade),
+        );
+      }
+
+      if (burst.isStar) {
+        canvas.drawCircle(
+          burst.center,
+          ui.lerpDouble(burst.cellSize * 0.25, burst.maxRadius * 1.2, easeT)!,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.5
+            ..color = Colors.amber.withValues(alpha: 0.60 * fade),
+        );
+      }
+
+      if (burst.specialKind != null) {
+        final Color specialColor = burst.specialKind == GemSpecialKind.nova
+            ? const Color(0xFFFFF1A8)
+            : Colors.white;
+        canvas.drawCircle(
+          burst.center,
+          ui.lerpDouble(burst.cellSize * 0.3, burst.maxRadius * 1.3, easeT)!,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.5
+            ..color = specialColor.withValues(alpha: 0.70 * fade),
+        );
+      }
+    }
+  }
+
+  void _drawSynergyBanners(Canvas canvas) {
+    if (_synergyBanners.isEmpty) return;
+    final _BoardGeometry geometry = _boardGeometry();
+    for (final _SynergyBanner banner in _synergyBanners) {
+      final double yCenter =
+          geometry.frame.top + geometry.cellSize * 0.8 + banner.yDrift;
+      canvas.save();
+      canvas.translate(geometry.frame.center.dx, yCenter);
+      canvas.scale(banner.scale);
+      canvas.translate(-geometry.frame.center.dx, -yCenter);
+      _drawText(
+        canvas,
+        banner.label,
+        Offset(geometry.frame.center.dx, yCenter),
+        color: banner.colorA.withValues(alpha: banner.alpha),
+        fontSize: 22,
+        fontWeight: FontWeight.w900,
+        centered: true,
+      );
+      canvas.restore();
+    }
+  }
+
   void _triggerGameOver() {
     _isGameOver = true;
     _statusText = 'The wave broke through.';
@@ -2287,7 +2721,8 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
     final double baseMultiplier = runState == null
         ? 1.0
         : RelicEffectApplier.burstDamageMultiplier(runState!) +
-            ClassPassiveApplier.burstDamageBonus(runState!);
+            ClassPassiveApplier.burstDamageBonus(runState!) +
+            RelicEffectApplier.cardBurstDamageBonus(runState!);
     return baseMultiplier + (_comboCount * 0.10);
   }
 
@@ -2571,11 +3006,13 @@ class _BoardSpecialEffect {
     required this.element,
     required this.bonusType,
     required this.duration,
+    this.activationCell,
   });
 
   final BlockType element;
   final MatchBonusType bonusType;
   final double duration;
+  final GridPoint? activationCell;
   double elapsed = 0;
 
   double get progress => (elapsed / duration).clamp(0.0, 1.0);
@@ -2646,4 +3083,83 @@ class _FloatingNumber {
     if (progress < fadeStart) return 1.0;
     return 1.0 - ((progress - fadeStart) / (1.0 - fadeStart));
   }
+}
+
+class _ClearBurst {
+  _ClearBurst({
+    required this.center,
+    required this.color,
+    required this.cellSize,
+    required this.isStar,
+    required this.specialKind,
+  });
+
+  final Offset center;
+  final Color color;
+  final double cellSize;
+  final bool isStar;
+  final GemSpecialKind? specialKind;
+  double elapsed = 0;
+
+  double get duration =>
+      specialKind != null ? 0.48 : isStar ? 0.42 : 0.32;
+  double get t => (elapsed / duration).clamp(0.0, 1.0);
+  int get particleCount => specialKind != null ? 8 : isStar ? 7 : 5;
+  double get maxRadius =>
+      cellSize * (specialKind != null ? 1.1 : isStar ? 0.9 : 0.65);
+}
+
+class _SynergyBanner {
+  _SynergyBanner({
+    required this.label,
+    required this.colorA,
+    required this.colorB,
+  });
+
+  final String label;
+  final Color colorA;
+  final Color colorB;
+  static const double duration = 1.6;
+  double elapsed = 0;
+
+  double get t => (elapsed / duration).clamp(0.0, 1.0);
+
+  double get scale {
+    if (t < 0.12) {
+      return 0.3 + 0.85 * Curves.easeOutBack.transform(t / 0.12);
+    }
+    return 1.0;
+  }
+
+  double get alpha => t < 0.75 ? 1.0 : 1.0 - ((t - 0.75) / 0.25);
+  double get yDrift => t < 0.75 ? 0.0 : -28.0 * ((t - 0.75) / 0.25);
+}
+
+class _Projectile {
+  _Projectile({
+    required this.startPos,
+    required this.targetPos,
+    required this.color,
+    required this.arcHeight,
+    required this.duration,
+  });
+
+  final Offset startPos;
+  final Offset targetPos;
+  final Color color;
+  final double arcHeight;
+  final double duration;
+  double elapsed = 0;
+
+  bool get isDone => elapsed >= duration;
+
+  double get _t => (elapsed / duration).clamp(0.0, 1.0);
+
+  Offset get currentPos {
+    final double t = _t;
+    final Offset linear = Offset.lerp(startPos, targetPos, t)!;
+    return linear + Offset(0, -arcHeight * 4 * t * (1 - t));
+  }
+
+  double get alpha => _t < 0.85 ? 1.0 : 1.0 - ((_t - 0.85) / 0.15);
 }

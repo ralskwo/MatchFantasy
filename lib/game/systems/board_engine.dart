@@ -112,8 +112,13 @@ class BoardEngine {
     final List<_MatchGroup> matchGroups = _findMatchGroups();
     final Set<GridPoint> matches = _collectMatchCells(matchGroups);
     if (matches.isEmpty) {
-      _swap(first, second);
-      return const BoardMoveResult(isValid: false);
+      final bool firstIsSpecial = _cells[first.row][first.column]?.special != null;
+      final bool secondIsSpecial = _cells[second.row][second.column]?.special != null;
+      if (!(firstIsSpecial && secondIsSpecial)) {
+        _swap(first, second);
+        return const BoardMoveResult(isValid: false);
+      }
+      matches.addAll({first, second});
     }
 
     final List<List<GemTile>> beforeBoard = snapshot();
