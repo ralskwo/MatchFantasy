@@ -29,6 +29,12 @@ enum CardEffectTag {
   activeBoardRefresh,
   manaOnKill,
   hpOnKill,
+  // 원소 특화 패시브 (Phase 2-C)
+  emberChain,       // Ember 버스트 후 다음 Spark 버스트 데미지 +30%
+  tideLeech,        // Tide AOE 처치 시 HP +1
+  bloomFortress,    // Shield 최대치 +15
+  sparkOverload,    // Spark 슬로우 적용 중 단일 타겟 데미지 +40%
+  umbraReap,        // Umbra 버스트 처치 시 Mana +5
 }
 
 class CardEffect {

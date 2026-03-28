@@ -1,4 +1,5 @@
 import 'package:match_fantasy/roguelike/models/relic.dart';
+import 'package:match_fantasy/roguelike/models/upgrade_card.dart';
 import 'package:match_fantasy/roguelike/state/run_state.dart';
 import 'package:match_fantasy/game/systems/combat_resolver.dart';
 
@@ -40,5 +41,45 @@ class RelicEffectApplier {
         resources.addShield(relic.effect.value.toInt());
       }
     }
+    // 카드 패시브: tide_leech(처치 시 HP +1), mana_on_kill, hp_on_kill
+    for (final card in run.cards) {
+      if (card.kind != CardKind.passive) continue;
+      switch (card.effect.tag) {
+        case CardEffectTag.hpOnKill:
+          resources.heal(card.effect.value.toInt());
+          break;
+        case CardEffectTag.manaOnKill:
+          resources.addMana(card.effect.value.toInt());
+          break;
+        case CardEffectTag.tideLeech:
+          resources.heal(card.effect.value.toInt());
+          break;
+        default:
+          break;
+      }
+    }
+  }
+
+  /// 전투 시작 시 카드 패시브 효과 적용
+  static void applyCardEffectsOnCombatStart(RunState run, SessionResources resources) {
+    for (final card in run.cards) {
+      if (card.kind != CardKind.passive) continue;
+      if (card.effect.tag == CardEffectTag.bloomFortress) {
+        // Shield 최대치 +15: 보너스 실드를 미리 부여
+        resources.addShield(card.effect.value.toInt());
+      }
+    }
+  }
+
+  /// 카드 패시브에서 버스트 데미지 배율 추가
+  static double cardBurstDamageBonus(RunState run) {
+    double bonus = 0.0;
+    for (final card in run.cards) {
+      if (card.kind == CardKind.passive &&
+          card.effect.tag == CardEffectTag.burstDamage) {
+        bonus += card.effect.value;
+      }
+    }
+    return bonus;
   }
 }

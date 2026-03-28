@@ -89,7 +89,13 @@ class _CombatScreenState extends State<CombatScreen> {
       run.endRun();
       context.go('/');
     } else {
-      context.go('/upgrade');
+      final currentNode = run.map?.nodes[run.currentNodeId];
+      if (currentNode?.type == NodeType.boss) {
+        run.advanceAct();
+        context.go('/map');
+      } else {
+        context.go('/upgrade');
+      }
     }
   }
 

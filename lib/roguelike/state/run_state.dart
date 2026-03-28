@@ -90,6 +90,15 @@ class RunState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void advanceAct() {
+    actNumber += 1;
+    currentNodeId = null;
+    final seed = DateTime.now().millisecondsSinceEpoch;
+    map = RunMap.generate(seed: seed, actRows: 5);
+    notifyListeners();
+    unawaited(save());
+  }
+
   void endRun() {
     isActive = false;
     unawaited(clearSave());

@@ -45,6 +45,43 @@ const List<UpgradeCard> allCards = [
     effect: CardEffect(tag: CardEffectTag.hpOnKill, value: 1),
   ),
 
+  // Elemental Specialization Passives (Phase 2-C)
+  UpgradeCard(
+    id: 'ember_chain',
+    name: '불꽃 연쇄',
+    kind: CardKind.passive,
+    description: 'Ember 버스트 직후 Spark 버스트 데미지 +30%',
+    effect: CardEffect(tag: CardEffectTag.emberChain, value: 0.30),
+  ),
+  UpgradeCard(
+    id: 'tide_leech',
+    name: '조류 흡수',
+    kind: CardKind.passive,
+    description: 'Tide AOE로 처치할 때마다 HP +1',
+    effect: CardEffect(tag: CardEffectTag.tideLeech, value: 1),
+  ),
+  UpgradeCard(
+    id: 'bloom_fortress',
+    name: '꽃 요새',
+    kind: CardKind.passive,
+    description: 'Shield 최대치 +15',
+    effect: CardEffect(tag: CardEffectTag.bloomFortress, value: 15),
+  ),
+  UpgradeCard(
+    id: 'spark_overload',
+    name: '전기 과부하',
+    kind: CardKind.passive,
+    description: 'Spark 슬로우 적용 중 단일 타겟 데미지 +40%',
+    effect: CardEffect(tag: CardEffectTag.sparkOverload, value: 0.40),
+  ),
+  UpgradeCard(
+    id: 'umbra_reap',
+    name: '암흑 수확',
+    kind: CardKind.passive,
+    description: 'Umbra 버스트 처치 시 마나 +5',
+    effect: CardEffect(tag: CardEffectTag.umbraReap, value: 5),
+  ),
+
   // Active
   UpgradeCard(
     id: 'element_burst',
