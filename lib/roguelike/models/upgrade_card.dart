@@ -7,6 +7,7 @@ class UpgradeCard {
     required this.description,
     required this.kind,
     this.usesPerCombat = 0,
+    this.rechargeThreshold = 15,
     required this.effect,
   });
 
@@ -15,6 +16,8 @@ class UpgradeCard {
   final String description;
   final CardKind kind;
   final int usesPerCombat;
+  // 타일 해소 몇 개마다 사용 횟수 1회 회복 (0 = 재충전 불가)
+  final int rechargeThreshold;
   final CardEffect effect;
 }
 

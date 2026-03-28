@@ -157,6 +157,34 @@ class BoardEngine {
     );
   }
 
+  BoardMoveResult clearAllOfType(BlockType targetType) {
+    final List<List<GemTile>> initialBoard = snapshot();
+    final Set<GridPoint> affected = <GridPoint>{};
+    for (int row = 0; row < rows; row++) {
+      for (int column = 0; column < columns; column++) {
+        if (_cells[row][column]?.type == targetType) {
+          affected.add(GridPoint(row, column));
+        }
+      }
+    }
+    if (affected.isEmpty) {
+      return const BoardMoveResult(isValid: false);
+    }
+    return _resolveClears(
+      affected,
+      initialBoard: initialBoard,
+      beforeBoard: initialBoard,
+    );
+  }
+
+  void refillBoard() {
+    for (int row = 0; row < rows; row++) {
+      for (int column = 0; column < columns; column++) {
+        _cells[row][column] = _pickTileFor(_cells, row, column);
+      }
+    }
+  }
+
   bool _swapCreatesMatch(GridPoint first, GridPoint second) {
     _swap(first, second);
     final bool hasMatch = _findMatchGroups().isNotEmpty;

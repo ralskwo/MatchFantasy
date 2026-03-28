@@ -21,6 +21,10 @@ class HudState {
     required this.armedItem,
     required this.difficulty,
     required this.comboCount,
+    this.activeCardIds = const <String>[],
+    this.activeCardUses = const <String, int>{},
+    this.activeCardChargeProgress = const <String, int>{},
+    this.activeCardRechargeThresholds = const <String, int>{},
   });
 
   final int health;
@@ -40,4 +44,9 @@ class HudState {
   final ItemType? armedItem;
   final GameDifficulty difficulty;
   final int comboCount;
+  // 액티브 카드 관련
+  final List<String> activeCardIds;
+  final Map<String, int> activeCardUses;
+  final Map<String, int> activeCardChargeProgress;
+  final Map<String, int> activeCardRechargeThresholds;
 }

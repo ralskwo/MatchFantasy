@@ -46,6 +46,11 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
   int _comboCount = 0;   // 현재 스왑의 캐스케이드 콤보 수
   int _peakCombo = 0;    // 이번 스왑 최대 콤보 (HUD 표시용)
   BlockType? _lastBurstElement;  // 직전 버스트 원소 (emberChain 카드용)
+
+  // 액티브 카드 상태: 카드id → 남은 사용 횟수
+  final Map<String, int> _activeCardUses = <String, int>{};
+  // 액티브 카드 충전 진행: 카드id → 누적 타일 클리어 수
+  final Map<String, int> _activeCardChargeProgress = <String, int>{};
   double _shakeIntensity = 0.0;
   double _shakeTimer = 0.0;
 
@@ -185,6 +190,17 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
     _shakeIntensity = 0.0;
     _shakeTimer = 0.0;
     _isGameOver = false;
+    _lastBurstElement = null;
+    _activeCardUses.clear();
+    _activeCardChargeProgress.clear();
+    if (runState != null) {
+      for (final card in runState!.cards) {
+        if (card.kind == CardKind.active && card.usesPerCombat > 0) {
+          _activeCardUses[card.id] = card.usesPerCombat;
+          _activeCardChargeProgress[card.id] = 0;
+        }
+      }
+    }
     _statusText =
         '${_difficulty.label} - Wave ${wave.waveNumber} - ${wave.profile.label}. Build 10 points to burst.';
     _queueWaveEvents(<WaveEvent>[
@@ -703,6 +719,7 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
     }
     if (runState != null) {
       _applyCardPassiveCues(summary.cues, summary.defeatedMonsters);
+      _tickActiveSkillCharges(move.clearedTiles);
     }
     _statusText = summary.statusText;
     _publishHud();
@@ -755,6 +772,67 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
   void _fireMeteorIfReady() {
     if (resources.mana >= meteorCost) {
       castMeteor();
+    }
+  }
+
+  void useActiveCard(String cardId) {
+    if (_isGameOver) return;
+    if ((_activeCardUses[cardId] ?? 0) <= 0) return;
+    if (runState == null) return;
+    final card = runState!.cards.firstWhere(
+      (c) => c.id == cardId,
+      orElse: () => throw StateError('Card $cardId not found'),
+    );
+    _activeCardUses[cardId] = (_activeCardUses[cardId] ?? 1) - 1;
+    switch (card.effect.tag) {
+      case CardEffectTag.activeShield:
+        resources.addShield(card.effect.value.toInt());
+        _statusText = '${card.name}: 실드 +${card.effect.value.toInt()}';
+        break;
+      case CardEffectTag.activeTimeStop:
+        _timeStopRemaining = card.effect.value;
+        wave.applySlowToAll(factor: 0.0, duration: card.effect.value);
+        _statusText = '${card.name}: ${card.effect.value.toInt()}초 정지';
+        break;
+      case CardEffectTag.activeBoardRefresh:
+        board.refillBoard();
+        _statusText = '${card.name}: 보드 새로고침';
+        break;
+      case CardEffectTag.activeElementClear:
+        // 보드에서 가장 많은 수를 차지하는 원소 타일 전부 클리어
+        final Map<BlockType, int> counts = <BlockType, int>{};
+        for (final row in board.snapshot()) {
+          for (final tile in row) {
+            counts[tile.type] = (counts[tile.type] ?? 0) + 1;
+          }
+        }
+        final BlockType target = counts.entries
+            .reduce((a, b) => a.value >= b.value ? a : b)
+            .key;
+        final BoardMoveResult result = board.clearAllOfType(target);
+        _applyBoardResult(result, sourceLabel: card.name);
+        _publishHud();
+        return;
+      default:
+        break;
+    }
+    _publishHud();
+  }
+
+  void _tickActiveSkillCharges(int tilesCleared) {
+    if (runState == null || tilesCleared <= 0) return;
+    for (final card in runState!.cards) {
+      if (card.kind != CardKind.active) continue;
+      final int threshold = card.rechargeThreshold;
+      if (threshold <= 0) continue;
+      final int current = (_activeCardChargeProgress[card.id] ?? 0) + tilesCleared;
+      final int gained = current ~/ threshold;
+      _activeCardChargeProgress[card.id] = current % threshold;
+      if (gained > 0) {
+        final int currentUses = _activeCardUses[card.id] ?? 0;
+        _activeCardUses[card.id] =
+            math.min(card.usesPerCombat, currentUses + gained);
+      }
     }
   }
 
@@ -2727,6 +2805,19 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
   }
 
   void _publishHud() {
+    final List<String> activeIds = runState == null
+        ? const <String>[]
+        : runState!.cards
+            .where((c) => c.kind == CardKind.active && c.usesPerCombat > 0)
+            .map((c) => c.id)
+            .toList(growable: false);
+    final Map<String, int> thresholds = runState == null
+        ? const <String, int>{}
+        : <String, int>{
+            for (final card in runState!.cards)
+              if (card.kind == CardKind.active)
+                card.id: card.rechargeThreshold,
+          };
     hud.value = HudState(
       health: resources.health,
       maxHealth: resources.maxHealth,
@@ -2745,6 +2836,11 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
       armedItem: _armedItem,
       difficulty: _difficulty,
       comboCount: _peakCombo,
+      activeCardIds: activeIds,
+      activeCardUses: Map<String, int>.unmodifiable(_activeCardUses),
+      activeCardChargeProgress:
+          Map<String, int>.unmodifiable(_activeCardChargeProgress),
+      activeCardRechargeThresholds: thresholds,
     );
   }
 

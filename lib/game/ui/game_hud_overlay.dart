@@ -7,6 +7,7 @@ import 'package:match_fantasy/game/models/hud_state.dart';
 import 'package:match_fantasy/game/models/item_type.dart';
 import 'package:match_fantasy/game/models/layout_mode.dart';
 import 'package:match_fantasy/game/ui/game_palette.dart';
+import 'package:match_fantasy/roguelike/data/cards_data.dart';
 import 'package:match_fantasy/roguelike/state/meta_state.dart';
 import 'package:provider/provider.dart';
 
@@ -304,6 +305,37 @@ class GameHudOverlay extends StatelessWidget {
                               ),
                             )
                             .toList(growable: false),
+                      ),
+                    ),
+                  ),
+                if (!hud.isGameOver && hud.activeCardIds.isNotEmpty)
+                  Positioned(
+                    bottom: 12,
+                    left: 0,
+                    child: SizedBox(
+                      width: 118,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: hud.activeCardIds.map((String cardId) {
+                          final card = cardById(cardId);
+                          final int uses = hud.activeCardUses[cardId] ?? 0;
+                          final int progress =
+                              hud.activeCardChargeProgress[cardId] ?? 0;
+                          final int threshold =
+                              hud.activeCardRechargeThresholds[cardId] ?? 15;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: _ActiveCardButton(
+                              name: card.name,
+                              uses: uses,
+                              chargeProgress: progress,
+                              rechargeThreshold: threshold,
+                              onPressed: uses > 0
+                                  ? () => game.useActiveCard(cardId)
+                                  : null,
+                            ),
+                          );
+                        }).toList(growable: false),
                       ),
                     ),
                   ),
@@ -625,6 +657,86 @@ class _ItemButton extends StatelessWidget {
           Text(
             'x$stock',
             style: const TextStyle(fontSize: 12, color: GamePalette.textMuted),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActiveCardButton extends StatelessWidget {
+  const _ActiveCardButton({
+    required this.name,
+    required this.uses,
+    required this.chargeProgress,
+    required this.rechargeThreshold,
+    required this.onPressed,
+  });
+
+  final String name;
+  final int uses;
+  final int chargeProgress;
+  final int rechargeThreshold;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool ready = uses > 0;
+    return FilledButton(
+      onPressed: onPressed,
+      style: FilledButton.styleFrom(
+        backgroundColor: ready
+            ? const Color(0xCC1A2E45)
+            : const Color(0x6640546B),
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(
+            color: ready
+                ? GamePalette.accent.withValues(alpha: 0.6)
+                : const Color(0x33486582),
+            width: 1.2,
+          ),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            name,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(2),
+                  child: LinearProgressIndicator(
+                    value: rechargeThreshold > 0
+                        ? chargeProgress / rechargeThreshold
+                        : 0.0,
+                    minHeight: 3,
+                    backgroundColor: const Color(0x33FFFFFF),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      ready ? Colors.amber : GamePalette.secondaryAccent,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'x$uses',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: GamePalette.textMuted,
+                ),
+              ),
+            ],
           ),
         ],
       ),
