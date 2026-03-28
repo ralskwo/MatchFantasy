@@ -40,11 +40,13 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
     required int hpRemaining,
     required int goldEarned,
     required int kills,
+    required int maxComboReached,
   })? onCombatEnd;
 
   int _killCount = 0;
   int _comboCount = 0;   // 현재 스왑의 캐스케이드 콤보 수
   int _peakCombo = 0;    // 이번 스왑 최대 콤보 (HUD 표시용)
+  int _maxComboThisCombat = 0;  // 이번 전투 전체 최대 콤보
   BlockType? _lastBurstElement;  // 직전 버스트 원소 (emberChain 카드용)
 
   // 액티브 카드 상태: 카드id → 남은 사용 횟수
@@ -187,6 +189,7 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
     _killCount = 0;
     _comboCount = 0;
     _peakCombo = 0;
+    _maxComboThisCombat = 0;
     _shakeIntensity = 0.0;
     _shakeTimer = 0.0;
     _isGameOver = false;
@@ -644,6 +647,7 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
     if (cascadeSteps > 0) {
       _comboCount += cascadeSteps;
       if (_comboCount > _peakCombo) _peakCombo = _comboCount;
+      if (_comboCount > _maxComboThisCombat) _maxComboThisCombat = _comboCount;
     }
     final CombatSummary summary = CombatResolver.resolveClear(
       move: move,
@@ -2810,6 +2814,7 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
       hpRemaining: resources.health,
       goldEarned: 0,
       kills: _killCount,
+      maxComboReached: _maxComboThisCombat,
     );
   }
 
@@ -2824,6 +2829,7 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
       hpRemaining: resources.health,
       goldEarned: goldEarned,
       kills: _killCount,
+      maxComboReached: _maxComboThisCombat,
     );
   }
 

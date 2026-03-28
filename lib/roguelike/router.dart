@@ -9,6 +9,7 @@ import 'package:match_fantasy/roguelike/screens/event_screen.dart';
 import 'package:match_fantasy/roguelike/screens/rest_screen.dart';
 import 'package:match_fantasy/roguelike/screens/reward_screen.dart';
 import 'package:match_fantasy/roguelike/screens/combat_screen.dart';
+import 'package:match_fantasy/roguelike/screens/run_end_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/',
@@ -23,5 +24,6 @@ final appRouter = GoRouter(
     GoRoute(path: '/rest',    builder: (ctx, state) => const RestScreen()),
     GoRoute(path: '/reward',  builder: (ctx, state) => const RewardScreen()),
     GoRoute(path: '/combat',  builder: (ctx, state) => const CombatScreen()),
+    GoRoute(path: '/run_end', builder: (ctx, state) => const RunEndScreen()),
   ],
 );

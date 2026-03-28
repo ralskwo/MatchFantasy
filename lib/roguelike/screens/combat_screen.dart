@@ -50,6 +50,7 @@ class _CombatScreenState extends State<CombatScreen> {
     required int hpRemaining,
     required int goldEarned,
     required int kills,
+    required int maxComboReached,
   }) {
     if (!mounted) return;
     final run = context.read<RunState>();
@@ -78,16 +79,16 @@ class _CombatScreenState extends State<CombatScreen> {
     meta.checkAchievements();
 
     if (!victory || run.isDead) {
+      run.recordCombatResult(kills: kills, maxComboReached: maxComboReached);
       final int nodesCleared = run.map?.nodes.values
           .where((n) => n.isVisited).length ?? 0;
       meta.recordRunEnd(
         nodesCleared: nodesCleared,
-        kills: kills,
+        kills: run.totalKills,
         hpLeft: hpRemaining,
         act3Cleared: false,
       );
-      run.endRun();
-      context.go('/');
+      context.go('/run_end');
     } else {
       final currentNode = run.map?.nodes[run.currentNodeId];
       if (currentNode?.type == NodeType.boss) {

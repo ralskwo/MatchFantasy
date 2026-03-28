@@ -24,6 +24,8 @@ class RunState extends ChangeNotifier {
   int actNumber = 1;
   bool isActive = false;
   bool temporaryShopDiscount = false;
+  int totalKills = 0;
+  int maxCombo = 0;
 
   void setSelectedClass(PlayerClass cls) {
     selectedClass = cls;
@@ -46,6 +48,8 @@ class RunState extends ChangeNotifier {
     actNumber = 1;
     isActive = true;
     temporaryShopDiscount = false;
+    totalKills = 0;
+    maxCombo = 0;
     notifyListeners();
   }
 
@@ -107,6 +111,12 @@ class RunState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void recordCombatResult({required int kills, required int maxComboReached}) {
+    totalKills += kills;
+    if (maxComboReached > maxCombo) maxCombo = maxComboReached;
+    notifyListeners();
+  }
+
   void applyShopDiscount() {
     temporaryShopDiscount = true;
     notifyListeners();
@@ -134,6 +144,8 @@ class RunState extends ChangeNotifier {
     'actNumber': actNumber,
     'isActive': isActive,
     'temporaryShopDiscount': temporaryShopDiscount,
+    'totalKills': totalKills,
+    'maxCombo': maxCombo,
   };
 
   void fromSaveJson(Map<String, dynamic> j) {
@@ -149,6 +161,8 @@ class RunState extends ChangeNotifier {
     actNumber = j['actNumber'] as int;
     isActive = j['isActive'] as bool;
     temporaryShopDiscount = (j['temporaryShopDiscount'] as bool?) ?? false;
+    totalKills = (j['totalKills'] as int?) ?? 0;
+    maxCombo = (j['maxCombo'] as int?) ?? 0;
     notifyListeners();
   }
 
