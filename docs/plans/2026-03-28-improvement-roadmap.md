@@ -200,10 +200,10 @@ extension MonsterKindAffinity on MonsterKind {
 ## Phase 3 — 콘텐츠 확장
 
 ### 3-A. Reward 노드
-- [ ] 구현 완료
+- [x] 구현 완료
 - **브랜치**: `phase3/reward-node`
 - **Spec**: `docs/superpowers/specs/YYYY-MM-DD-reward-node.md`
-- **커밋**: —
+- **커밋**: `8a7e4d4`
 
 **목표**: 전투 후 보상을 카드/렐릭/골드 중 선택하는 분기 보상으로 변경.
 
@@ -239,10 +239,10 @@ if (weak != null) {
 ---
 
 ### 3-C. 이벤트 확장 + 상점 세일
-- [ ] 구현 완료
+- [x] 구현 완료
 - **브랜치**: `phase3/event-expansion`
 - **Spec**: `docs/superpowers/specs/YYYY-MM-DD-event-expansion.md`
-- **커밋**: —
+- **커밋**: `54ee602`
 
 **목표**: 이벤트 3~5개 추가, 상점 반값 세일 이벤트 결과 추가.
 
@@ -265,18 +265,18 @@ if (weak != null) {
 ---
 
 ### 4-B. 클래스 패시브 완전 구현
-- [ ] 구현 완료
+- [x] 구현 완료
 - **브랜치**: `phase4/class-passive-complete`
-- **커밋**: —
+- **커밋**: `26c2136`
 
 **목표**: SparkTrickster(슬로우 중 ×2), UmbraReaper(처치 시 Umbra 타일 주입) 패시브 구현.
 
 ---
 
 ### 4-C. 런 요약 화면
-- [ ] 구현 완료
+- [x] 구현 완료
 - **브랜치**: `phase4/run-summary-screen`
-- **커밋**: —
+- **커밋**: `86b5127`
 
 **목표**: 런 종료 시 처치 수, 최대 콤보, 수집 카드 목록 표시.
 
@@ -293,10 +293,10 @@ if (weak != null) {
 | 2-C 카드 덱 확장 | ✅ 완료 | `c13ba29` |
 | 2-A 액티브 충전 | ✅ 완료 | `65f34a7` |
 | 2-B Cross Clear | ✅ 완료 | `54f4583` |
-| 3-A Reward 노드 | 대기 | — |
-| 3-C 이벤트 확장 | 대기 | — |
-| 4-B 클래스 패시브 | 대기 | — |
-| 4-C 런 요약 화면 | 대기 | — |
+| 3-A Reward 노드 | ✅ 완료 | `8a7e4d4` |
+| 3-C 이벤트 확장 | ✅ 완료 | `54ee602` |
+| 4-B 클래스 패시브 | ✅ 완료 | `26c2136` |
+| 4-C 런 요약 화면 | ✅ 완료 | `86b5127` |
 | 4-A 프레젠테이션 분리 | 대기 | — |
 
 ---
