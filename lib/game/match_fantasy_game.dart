@@ -652,6 +652,11 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
       elementCharges: _elementCharges,
       sourceLabel: sourceLabel,
       burstDamageMultiplier: _getBurstMultiplier(),
+      sparkSlowDurationMultiplier: runState == null
+          ? 1.0
+          : ClassPassiveApplier.sparkSlowDurationMultiplier(runState!),
+      umbraExtraFrontHit: runState != null &&
+          ClassPassiveApplier.umbraExtraFrontHit(runState!),
     );
     _queueBoardAnimation(move);
     _queueBoardFeedback(move);

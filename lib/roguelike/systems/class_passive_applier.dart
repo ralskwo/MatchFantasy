@@ -23,4 +23,15 @@ class ClassPassiveApplier {
     if (run.selectedClass?.id == PlayerClassId.bloomWarden) return 3;
     return 0;
   }
+
+  /// Spark Trickster: Spark 슬로우 효과 지속 2배
+  static double sparkSlowDurationMultiplier(RunState run) {
+    if (run.selectedClass?.id == PlayerClassId.sparkTrickster) return 2.0;
+    return 1.0;
+  }
+
+  /// Umbra Reaper: Umbra AOE 후 프론트 몬스터에 추가 단일 피격 (+1칸 효과)
+  static bool umbraExtraFrontHit(RunState run) {
+    return run.selectedClass?.id == PlayerClassId.umbraReaper;
+  }
 }

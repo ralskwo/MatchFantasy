@@ -77,6 +77,8 @@ class CombatResolver {
     required Map<BlockType, int> elementCharges,
     String? sourceLabel,
     double burstDamageMultiplier = 1.0,
+    double sparkSlowDurationMultiplier = 1.0,
+    bool umbraExtraFrontHit = false,
   }) {
     if (!move.isValid) {
       return const CombatSummary(
@@ -140,11 +142,17 @@ class CombatResolver {
           break;
         case BlockType.spark:
           defeated += wave.damageFrontMonster(damage * affinity);
-          wave.applySlowToAll(factor: 0.5, duration: 2.4 + (0.4 * bursts));
+          wave.applySlowToAll(
+            factor: 0.5,
+            duration: (2.4 + (0.4 * bursts)) * sparkSlowDurationMultiplier,
+          );
           fragments.add('Spark burst $damage${affinity > 1.0 ? ' ★' : affinity < 1.0 ? ' ▽' : ''}');
           break;
         case BlockType.umbra:
           defeated += wave.damageAll(damage.toDouble());
+          if (umbraExtraFrontHit) {
+            defeated += wave.damageFrontMonster(damage * 0.5);
+          }
           fragments.add('Void burst $damage');
           break;
       }
