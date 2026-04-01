@@ -6,6 +6,7 @@ import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:match_fantasy/game/models/asset_paths.dart';
+import 'package:match_fantasy/game/models/battle_presentation_event.dart';
 import 'package:match_fantasy/game/models/block_type.dart';
 import 'package:match_fantasy/game/models/board_move_result.dart';
 import 'package:match_fantasy/game/models/combat_cue.dart';
@@ -18,10 +19,13 @@ import 'package:match_fantasy/game/models/item_type.dart';
 import 'package:match_fantasy/game/models/monster_state.dart';
 import 'package:match_fantasy/game/models/wave_event.dart';
 import 'package:match_fantasy/game/systems/board_engine.dart';
+import 'package:match_fantasy/game/systems/battle_presentation_driver.dart';
+import 'package:match_fantasy/game/systems/battle_presentation_planner.dart';
 import 'package:match_fantasy/game/systems/combat_resolver.dart';
+import 'package:match_fantasy/game/systems/projectile_path_geometry.dart';
 import 'package:match_fantasy/game/systems/wave_controller.dart';
-import 'package:match_fantasy/game/ui/game_palette.dart';
 import 'package:match_fantasy/game/models/layout_mode.dart';
+import 'package:match_fantasy/game/ui/game_palette.dart';
 import 'package:match_fantasy/roguelike/models/upgrade_card.dart';
 import 'package:match_fantasy/roguelike/state/run_state.dart';
 import 'package:match_fantasy/roguelike/systems/class_passive_applier.dart';
@@ -66,6 +70,10 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
       'Match gems to build 10-point elemental bursts.';
 
   final math.Random _random;
+  final BattlePresentationPlanner _battlePresentationPlanner =
+      const BattlePresentationPlanner();
+  final BattlePresentationDriver _battlePresentationDriver =
+      BattlePresentationDriver();
   final Map<BlockType, ui.Image> _elementIcons = <BlockType, ui.Image>{};
   final Map<MonsterKind, ui.Image> _monsterIcons = <MonsterKind, ui.Image>{};
   final ValueNotifier<HudState> hud = ValueNotifier<HudState>(
@@ -104,6 +112,11 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
   GridPoint? _dragStartCell;
   Offset? _dragStartPosition;
   Offset? _dragCurrentPosition;
+  GridPoint? _dragTargetCell;
+  double? _dragReboundStartTime;
+  Offset? _dragReboundFrom;
+  GridPoint? _dragReboundCell;
+  static const double _kDragReboundDuration = 0.16;
   final List<_BattleEffect> _battleEffects = <_BattleEffect>[];
   final List<_BoardPulse> _boardPulses = <_BoardPulse>[];
   final List<_WaveAnnouncement> _waveAnnouncements = <_WaveAnnouncement>[];
@@ -113,6 +126,8 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
       <_BoardSpecialEffect>[];
   final List<_FloatingNumber> _floatingNumbers = <_FloatingNumber>[];
   final List<_ClearBurst> _clearBursts = <_ClearBurst>[];
+  final List<_ImpactRing> _impactRings = <_ImpactRing>[];
+  final List<_ComboBanner> _comboBanners = <_ComboBanner>[];
   final List<_SynergyBanner> _synergyBanners = <_SynergyBanner>[];
   final List<_Projectile> _projectiles = <_Projectile>[];
   double _totalTime = 0.0;
@@ -173,6 +188,10 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
     _dragStartCell = null;
     _dragStartPosition = null;
     _dragCurrentPosition = null;
+    _dragTargetCell = null;
+    _dragReboundStartTime = null;
+    _dragReboundFrom = null;
+    _dragReboundCell = null;
     _battleEffects.clear();
     _boardPulses.clear();
     _waveAnnouncements.clear();
@@ -181,8 +200,11 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
     _boardSpecialEffects.clear();
     _floatingNumbers.clear();
     _clearBursts.clear();
+    _impactRings.clear();
+    _comboBanners.clear();
     _synergyBanners.clear();
     _projectiles.clear();
+    _battlePresentationDriver.clear();
     _hintTimer = 0;
     _timeStopRemaining = 0;
     _score = 0;
@@ -523,6 +545,11 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
         _dragCurrentPosition!.dx + event.localDelta.x,
         _dragCurrentPosition!.dy + event.localDelta.y,
       );
+      _dragTargetCell = _resolvedDragTarget(
+        _dragStartCell,
+        _dragStartPosition,
+        _dragCurrentPosition,
+      );
     }
   }
 
@@ -538,6 +565,10 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
     _dragStartCell = null;
     _dragStartPosition = null;
     _dragCurrentPosition = null;
+    _dragTargetCell = null;
+    _dragReboundStartTime = null;
+    _dragReboundFrom = null;
+    _dragReboundCell = null;
   }
 
   void _completeDragSwap() {
@@ -548,6 +579,7 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
     _dragStartCell = null;
     _dragStartPosition = null;
     _dragCurrentPosition = null;
+    _dragTargetCell = null;
 
     if (startCell == null || startPos == null || endPos == null) {
       return;
@@ -583,6 +615,9 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
         targetCell.row >= board.rows ||
         targetCell.column < 0 ||
         targetCell.column >= board.columns) {
+      _dragReboundStartTime = _totalTime;
+      _dragReboundFrom = endPos;
+      _dragReboundCell = startCell;
       _publishHud();
       return;
     }
@@ -590,6 +625,9 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
     final BoardMoveResult move = board.trySwap(startCell, targetCell);
     if (!move.isValid) {
       _statusText = 'No match from that swap.';
+      _dragReboundStartTime = _totalTime;
+      _dragReboundFrom = endPos;
+      _dragReboundCell = startCell;
       _publishHud();
       return;
     }
@@ -609,6 +647,35 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
     );
   }
 
+  GridPoint? _resolvedDragTarget(
+    GridPoint? startCell,
+    Offset? startPos,
+    Offset? endPos,
+  ) {
+    if (startCell == null || startPos == null || endPos == null) return null;
+    final double dx = endPos.dx - startPos.dx;
+    final double dy = endPos.dy - startPos.dy;
+    final double dist = math.sqrt(dx * dx + dy * dy);
+    final double minDrag = _boardGeometry().cellSize * 0.33;
+    if (dist < minDrag) return null;
+    if (dx.abs() >= dy.abs()) {
+      final int targetCol = startCell.column + (dx > 0 ? 1 : -1);
+      if (targetCol < 0 || targetCol >= board.columns) return null;
+      return GridPoint(startCell.row, targetCol);
+    } else {
+      final int targetRow = startCell.row + (dy > 0 ? 1 : -1);
+      if (targetRow < 0 || targetRow >= board.rows) return null;
+      return GridPoint(targetRow, startCell.column);
+    }
+  }
+
+  Offset _cellCenterAt(_BoardGeometry geometry, GridPoint cell) {
+    return Offset(
+      geometry.grid.left + (cell.column + 0.5) * geometry.cellSize,
+      geometry.grid.top + (cell.row + 0.5) * geometry.cellSize,
+    );
+  }
+
   @override
   void render(Canvas canvas) {
     super.render(canvas);
@@ -620,6 +687,7 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
       _drawBackground(canvas);
       _drawBattlefield(canvas);
       _drawProjectiles(canvas);
+      _drawComboBanners(canvas);
       _drawBoard(canvas);
       _drawClearBursts(canvas);
       _drawSynergyBanners(canvas);
@@ -629,6 +697,7 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
       _drawBackground(canvas);
       _drawBattlefield(canvas);
       _drawProjectiles(canvas);
+      _drawComboBanners(canvas);
       _drawBoard(canvas);
       _drawClearBursts(canvas);
       _drawSynergyBanners(canvas);
@@ -662,16 +731,12 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
       umbraExtraFrontHit: runState != null &&
           ClassPassiveApplier.umbraExtraFrontHit(runState!),
     );
-    _queueBoardAnimation(move);
-    _queueBoardFeedback(move);
-    _queueCombatCues(summary.cues);
-    if (summary.cues.any((c) => c.kind == CombatCueKind.elementBurst)) {
-      final bool highCombo = _comboCount >= 3;
-      _triggerShake(
-        intensity: highCombo ? 8.0 : 4.0,
-        duration: highCombo ? 0.25 : 0.18,
-      );
-    }
+    _queuePresentationPlan(
+      move,
+      summary,
+      synergyKindA: synergyKindA,
+      synergyKindB: synergyKindB,
+    );
     if (synergyKindA != null && synergyKindB != null) {
       final bool hasNova = synergyKindA == GemSpecialKind.nova ||
           synergyKindB == GemSpecialKind.nova;
@@ -706,12 +771,30 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
     for (final CombatCue cue in summary.cues) {
       if (cue.kind == CombatCueKind.elementBurst) {
         final Rect battleRect = _battlefieldRect();
-        final double x = battleRect.left + _random.nextDouble() * battleRect.width;
-        final double y = battleRect.center.dy;
+        final double defenseY = battleRect.bottom - 26;
+        final MonsterState? frontMonster = _frontMonsterForEffects();
+        final Offset impactPos = frontMonster != null
+            ? _monsterCenter(frontMonster, battleRect, defenseY)
+            : Offset(battleRect.center.dx, battleRect.center.dy);
         final bool highCombo = _comboCount >= 3;
+        _impactRings.add(
+          _ImpactRing(
+            center: impactPos,
+            color: GamePalette.block(cue.element ?? BlockType.ember),
+            radius: frontMonster != null
+                ? 42 * frontMonster.kind.scale * 0.9
+                : 28.0,
+          ),
+        );
         _floatingNumbers.add(
           _FloatingNumber(
-            position: Offset(x, y),
+            position: Offset(
+              impactPos.dx + 12,
+              impactPos.dy -
+                  (frontMonster != null
+                      ? 42 * frontMonster.kind.scale * 0.55
+                      : 20),
+            ),
             text: highCombo
                 ? '×$_comboCount ${cue.magnitude}'
                 : '${cue.magnitude}',
@@ -733,6 +816,96 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
     _statusText = summary.statusText;
     _publishHud();
     _fireMeteorIfReady();
+  }
+
+  void _queuePresentationPlan(
+    BoardMoveResult move,
+    CombatSummary summary, {
+    GemSpecialKind? synergyKindA,
+    GemSpecialKind? synergyKindB,
+  }) {
+    final List<BattlePresentationEvent> plan =
+        _battlePresentationPlanner.build(
+      move: move,
+      cues: summary.cues,
+      comboCount: _comboCount,
+      synergyKindA: synergyKindA,
+      synergyKindB: synergyKindB,
+    );
+    _battlePresentationDriver.enqueue(plan);
+    _battlePresentationDriver.flushReady(_dispatchPresentationEvent);
+  }
+
+  void _dispatchPresentationEvent(BattlePresentationEvent event) {
+    switch (event) {
+      case BoardAnimationPresentationEvent():
+        _queueBoardAnimation(event.move);
+        break;
+      case BoardFeedbackPresentationEvent():
+        _queueBoardFeedback(event.move);
+        break;
+      case CombatCuePresentationEvent():
+        _queueCombatCues(<CombatCue>[event.cue]);
+        if (event.cue.kind == CombatCueKind.elementBurst) {
+          final double shakeIntensity = _comboCount >= 5
+              ? 14.0
+              : _comboCount >= 4
+                  ? 11.0
+                  : _comboCount >= 3
+                      ? 8.0
+                      : 4.0;
+          final double shakeDuration = _comboCount >= 3 ? 0.28 : 0.18;
+          _triggerShake(intensity: shakeIntensity, duration: shakeDuration);
+        }
+        break;
+      case ProjectileVolleyPresentationEvent():
+        _queueProjectileVolley(event.projectiles);
+        break;
+      case ComboBannerPresentationEvent():
+        _comboBanners.add(
+          _ComboBanner(
+            count: event.comboCount,
+            color: GamePalette.comboColor(event.comboCount),
+          ),
+        );
+        break;
+      case SynergyBannerPresentationEvent():
+        break;
+    }
+  }
+
+  void _queueProjectileVolley(List<PresentationProjectile> projectiles) {
+    if (projectiles.isEmpty) {
+      return;
+    }
+
+    final _BoardGeometry geometry = _boardGeometry();
+    final Rect battleRect = _battlefieldRect();
+    final double defenseY = battleRect.bottom - 26;
+    final MonsterState? targetMonster = _frontMonsterForEffects();
+    final Offset startPos = Offset(geometry.grid.center.dx, geometry.grid.bottom);
+    final Offset targetPos = targetMonster == null
+        ? _laneImpactPoint(battleRect, defenseY, _frontLaneForEffects())
+        : _monsterCenter(targetMonster, battleRect, defenseY);
+    final double travelHeight = (startPos.dy - targetPos.dy).abs();
+
+    for (final PresentationProjectile projectile in projectiles) {
+      if (_projectiles.length >= 8) {
+        break;
+      }
+      _projectiles.add(
+        _Projectile(
+          startPos: startPos,
+          targetPos: targetPos,
+          color: GamePalette.block(projectile.element),
+          fieldWidth: battleRect.width,
+          travelHeight: travelHeight,
+          arcHeightFactor: projectile.arcHeightFactor,
+          arcBias: projectile.arcBias,
+          duration: projectile.travelDurationMs / 1000,
+        ),
+      );
+    }
   }
 
   void _applyCardPassiveCues(List<CombatCue> cues, int defeated) {
@@ -934,6 +1107,20 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
       }
     }
 
+    for (int index = _impactRings.length - 1; index >= 0; index--) {
+      _impactRings[index].elapsed += dt;
+      if (_impactRings[index].isDone) {
+        _impactRings.removeAt(index);
+      }
+    }
+
+    for (int index = _comboBanners.length - 1; index >= 0; index--) {
+      _comboBanners[index].elapsed += dt;
+      if (_comboBanners[index].elapsed >= _ComboBanner.duration) {
+        _comboBanners.removeAt(index);
+      }
+    }
+
     for (int index = _synergyBanners.length - 1; index >= 0; index--) {
       _synergyBanners[index].elapsed += dt;
       if (_synergyBanners[index].elapsed >= _SynergyBanner.duration) {
@@ -947,6 +1134,15 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
         _projectiles.removeAt(index);
       }
     }
+
+    if (_dragReboundStartTime != null &&
+        _totalTime - _dragReboundStartTime! >= _kDragReboundDuration) {
+      _dragReboundStartTime = null;
+      _dragReboundFrom = null;
+      _dragReboundCell = null;
+    }
+
+    _battlePresentationDriver.update(dt, _dispatchPresentationEvent);
   }
 
   void _queueBoardFeedback(BoardMoveResult move) {
@@ -994,6 +1190,23 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
         ),
       );
     }
+
+    if (move.comboDepth >= 5) {
+      _boardPulses.add(
+        _BoardPulse(
+          color: GamePalette.accent,
+          duration: 0.35,
+          intensity: 1.8,
+        ),
+      );
+    }
+  }
+
+  double _comboBurstScale(int comboDepth) {
+    if (comboDepth >= 5) return 1.8;
+    if (comboDepth >= 4) return 1.5;
+    if (comboDepth >= 3) return 1.3;
+    return 1.0;
   }
 
   void _queueBoardAnimation(BoardMoveResult move) {
@@ -1012,6 +1225,7 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
           cellSize: geometry.cellSize,
           isStar: gem.tile.isStar,
           specialKind: gem.tile.special,
+          comboScale: _comboBurstScale(move.comboDepth),
         ));
       }
     }
@@ -1250,29 +1464,6 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
               starBoost: cue.starBoost,
             ),
           );
-          if (_projectiles.length < 8) {
-            final _BoardGeometry geo = _boardGeometry();
-            final Rect battleRect = _battlefieldRect();
-            final Offset startPos = Offset(geo.grid.center.dx, geo.grid.bottom);
-            final MonsterState? target = wave.monsters.isEmpty
-                ? null
-                : wave.monsters.reduce(
-                    (a, b) => a.progress > b.progress ? a : b);
-            final Offset targetPos = target != null
-                ? Offset(
-                    battleRect.left + target.progress * battleRect.width,
-                    battleRect.top +
-                        battleRect.height * (0.3 + target.lane * 0.25),
-                  )
-                : Offset(battleRect.center.dx, battleRect.center.dy);
-            _projectiles.add(_Projectile(
-              startPos: startPos,
-              targetPos: targetPos,
-              color: GamePalette.block(cue.element!),
-              arcHeight: geo.cellSize * 0.9,
-              duration: 0.35,
-            ));
-          }
           break;
       }
     }
@@ -1554,6 +1745,25 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
           _drawElementIcon(canvas, weakElement, badgeRect.deflate(badgeSize * 0.08), alpha: 0.92);
         }
       }
+    }
+
+    for (final _ImpactRing ring in _impactRings) {
+      canvas.drawCircle(
+        ring.center,
+        ring.currentRadius,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.5
+          ..color = ring.color.withValues(alpha: ring.alpha * 0.75),
+      );
+      canvas.drawCircle(
+        ring.center,
+        ring.currentRadius * 0.65,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5
+          ..color = Colors.white.withValues(alpha: ring.alpha * 0.40),
+      );
     }
 
     _drawBattleEffects(canvas, battleRect, defenseY);
@@ -1839,6 +2049,25 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
           continue;
         }
 
+        // Drag ghost: source cell rendered as empty hole.
+        final bool isDragSource =
+            _dragStartCell != null && cell == _dragStartCell;
+        final bool isReboundSource =
+            _dragReboundCell != null && cell == _dragReboundCell;
+        if (isDragSource || isReboundSource) {
+          canvas.drawRRect(
+            RRect.fromRectAndRadius(
+              cellRect.deflate(geometry.cellSize * 0.07),
+              Radius.circular(geometry.cellSize * 0.20),
+            ),
+            Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 2.0
+              ..color = Colors.white.withValues(alpha: 0.18),
+          );
+          continue;
+        }
+
         final GemTile tile = animationBoard == null
             ? board.tileAt(row, column)
             : animationBoard[row][column];
@@ -1847,15 +2076,40 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
             _hintMove != null && _hintTimer > 0 && _hintMove!.contains(cell);
         final bool isArmedTarget =
             _armedItem == ItemType.sunStone || _armedItem == ItemType.moonStone;
+
+        // Drag target preview: counter-shift 22% of drag delta.
+        Offset extraOffset = Offset.zero;
+        if (_dragStartCell != null &&
+            _dragTargetCell != null &&
+            cell == _dragTargetCell &&
+            _dragCurrentPosition != null &&
+            _dragStartPosition != null) {
+          final Offset dragDelta = _dragCurrentPosition! - _dragStartPosition!;
+          extraOffset = Offset(
+            dragDelta.dx.abs() > dragDelta.dy.abs() ? -dragDelta.dx * 0.22 : 0,
+            dragDelta.dy.abs() > dragDelta.dx.abs() ? -dragDelta.dy * 0.22 : 0,
+          );
+        }
+
+        final Rect drawCellRect = extraOffset != Offset.zero
+            ? cellRect.shift(extraOffset)
+            : cellRect;
+        final RRect drawTileFrame = extraOffset != Offset.zero
+            ? RRect.fromRectAndRadius(
+                drawCellRect.deflate(geometry.cellSize * 0.07),
+                Radius.circular(geometry.cellSize * 0.20),
+              )
+            : tileFrame;
         _drawGemTile(
           canvas,
           geometry: geometry,
           tile: tile,
-          cellRect: cellRect,
-          tileFrame: tileFrame,
+          cellRect: drawCellRect,
+          tileFrame: drawTileFrame,
           isSelected: isSelected,
           isHinted: isHinted,
           isArmedTarget: isArmedTarget,
+          alpha: (_dragTargetCell != null && cell == _dragTargetCell) ? 0.70 : 1.0,
         );
       }
     }
@@ -1863,6 +2117,7 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
     _drawBoardPulses(canvas, geometry);
     _drawBoardAnimation(canvas, geometry);
     _drawBoardSpecialEffects(canvas, geometry);
+    _drawDragGhost(canvas, geometry);
   }
 
   void _drawGemTile(
@@ -2034,6 +2289,83 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
         badgeSize,
       );
       _drawElementIcon(canvas, tile.type, badgeRect, alpha: alpha * 0.95);
+    }
+  }
+
+  void _drawDragGhost(Canvas canvas, _BoardGeometry geometry) {
+    if (_dragStartCell != null && _dragCurrentPosition != null) {
+      final GemTile tile = board.tileAt(
+        _dragStartCell!.row,
+        _dragStartCell!.column,
+      );
+      const double kScale = 1.12;
+      final double cs = geometry.cellSize;
+      final Rect ghostRect = Rect.fromCenter(
+        center: _dragCurrentPosition!,
+        width: cs * kScale,
+        height: cs * kScale,
+      );
+      final RRect ghostFrame = RRect.fromRectAndRadius(
+        ghostRect.deflate(cs * 0.07 * kScale),
+        Radius.circular(cs * 0.20 * kScale),
+      );
+      canvas.drawCircle(
+        _dragCurrentPosition!,
+        cs * 0.55,
+        Paint()
+          ..color = Colors.black.withValues(alpha: 0.32)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14),
+      );
+      canvas.drawCircle(
+        _dragCurrentPosition!,
+        cs * 0.40,
+        Paint()..color = GamePalette.block(tile.type).withValues(alpha: 0.22),
+      );
+      _drawGemTile(
+        canvas,
+        geometry: geometry,
+        tile: tile,
+        cellRect: ghostRect,
+        tileFrame: ghostFrame,
+        isSelected: true,
+        scale: kScale,
+      );
+      return;
+    }
+
+    if (_dragReboundStartTime != null &&
+        _dragReboundCell != null &&
+        _dragReboundFrom != null) {
+      final double elapsed = _totalTime - _dragReboundStartTime!;
+      final double rawT = (elapsed / _kDragReboundDuration).clamp(0.0, 1.0);
+      final double reboundT = Curves.easeOutBack.transform(rawT);
+      final Offset targetCenter = _cellCenterAt(geometry, _dragReboundCell!);
+      final Offset ghostPos =
+          Offset.lerp(_dragReboundFrom!, targetCenter, reboundT)!;
+      final GemTile tile = board.tileAt(
+        _dragReboundCell!.row,
+        _dragReboundCell!.column,
+      );
+      final double cs = geometry.cellSize;
+      final double scaleVal = ui.lerpDouble(1.10, 1.0, rawT)!;
+      final Rect ghostRect = Rect.fromCenter(
+        center: ghostPos,
+        width: cs * scaleVal,
+        height: cs * scaleVal,
+      );
+      final RRect ghostFrame = RRect.fromRectAndRadius(
+        ghostRect.deflate(cs * 0.07 * scaleVal),
+        Radius.circular(cs * 0.20 * scaleVal),
+      );
+      _drawGemTile(
+        canvas,
+        geometry: geometry,
+        tile: tile,
+        cellRect: ghostRect,
+        tileFrame: ghostFrame,
+        scale: scaleVal,
+        alpha: ui.lerpDouble(0.9, 1.0, rawT)!,
+      );
     }
   }
 
@@ -2643,8 +2975,12 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
   }
 
   int _frontLaneForEffects() {
+    return _frontMonsterForEffects()?.lane ?? (wave.laneCount ~/ 2);
+  }
+
+  MonsterState? _frontMonsterForEffects() {
     if (wave.monsters.isEmpty) {
-      return wave.laneCount ~/ 2;
+      return null;
     }
 
     MonsterState target = wave.monsters.first;
@@ -2653,7 +2989,7 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
         target = monster;
       }
     }
-    return target.lane;
+    return target;
   }
 
   Offset _laneImpactPoint(Rect battleRect, double defenseY, int lane) {
@@ -2683,36 +3019,92 @@ class MatchFantasyGame extends FlameGame with TapCallbacks, DragCallbacks {
     return null;
   }
 
+  void _drawComboBanners(Canvas canvas) {
+    if (_comboBanners.isEmpty) {
+      return;
+    }
+
+    final Rect battleRect = _battlefieldRect();
+    final Offset center = Offset(
+      battleRect.center.dx,
+      battleRect.top + (battleRect.height * 0.4),
+    );
+    for (final _ComboBanner banner in _comboBanners) {
+      final Offset anchor = Offset(center.dx, center.dy + banner.yDrift);
+      canvas.save();
+      canvas.translate(anchor.dx, anchor.dy);
+      canvas.scale(banner.scale);
+      canvas.translate(-anchor.dx, -anchor.dy);
+      _drawText(
+        canvas,
+        banner.label,
+        anchor,
+        color: banner.color.withValues(alpha: banner.alpha),
+        fontSize: banner.count >= 5 ? 34 : 26,
+        fontWeight: FontWeight.w900,
+        centered: true,
+      );
+      canvas.restore();
+    }
+  }
+
   void _drawProjectiles(Canvas canvas) {
     if (_projectiles.isEmpty) return;
     for (final _Projectile proj in _projectiles) {
       final Offset pos = proj.currentPos;
       final double a = proj.alpha;
-      // 발광 원 (outer glow)
-      canvas.drawCircle(
-        pos,
-        7.0,
-        Paint()..color = proj.color.withValues(alpha: 0.25 * a),
-      );
-      // 코어
-      canvas.drawCircle(
-        pos,
-        4.5,
-        Paint()..color = proj.color.withValues(alpha: 0.9 * a),
-      );
-      // trail (3 dots)
-      for (int i = 1; i <= 3; i++) {
-        final double trailT =
-            ((proj.elapsed - i * 0.025) / proj.duration).clamp(0.0, 1.0);
-        final Offset linear = Offset.lerp(proj.startPos, proj.targetPos, trailT)!;
-        final Offset trailPos =
-            linear + Offset(0, -proj.arcHeight * 4 * trailT * (1 - trailT));
-        canvas.drawCircle(
-          trailPos,
-          3.0 - i * 0.6,
-          Paint()..color = proj.color.withValues(alpha: (0.4 - i * 0.1) * a),
+
+      // gradient tail (Sigil Descent style)
+      final double tailT = (proj.progress - 0.18).clamp(0.0, 1.0);
+      final Offset tailStart = proj.positionAt(tailT);
+      final double tailLength = (pos - tailStart).distance;
+      if (tailLength > 1.0) {
+        canvas.drawLine(
+          tailStart,
+          pos,
+          Paint()
+            ..shader = ui.Gradient.linear(
+              tailStart,
+              pos,
+              <Color>[
+                proj.color.withValues(alpha: 0),
+                proj.color.withValues(alpha: 0.12 * a),
+                proj.color.withValues(alpha: 0.55 * a),
+                proj.color.withValues(alpha: 0.90 * a),
+              ],
+              <double>[0.0, 0.25, 0.70, 1.0],
+            )
+            ..strokeWidth = 8.0
+            ..strokeCap = StrokeCap.round
+            ..style = PaintingStyle.stroke,
         );
       }
+
+      // outer glow
+      canvas.drawCircle(
+        pos,
+        10.0,
+        Paint()..color = proj.color.withValues(alpha: 0.18 * a),
+      );
+      // mid glow
+      canvas.drawCircle(
+        pos,
+        6.5,
+        Paint()..color = proj.color.withValues(alpha: 0.50 * a),
+      );
+      // white core
+      canvas.drawCircle(
+        pos,
+        4.0,
+        Paint()
+          ..color = Colors.white.withValues(alpha: 0.92 * a)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
+      );
+      canvas.drawCircle(
+        pos,
+        2.8,
+        Paint()..color = Colors.white.withValues(alpha: 0.98 * a),
+      );
     }
   }
 
@@ -3233,6 +3625,7 @@ class _ClearBurst {
     required this.cellSize,
     required this.isStar,
     required this.specialKind,
+    this.comboScale = 1.0,
   });
 
   final Offset center;
@@ -3240,14 +3633,68 @@ class _ClearBurst {
   final double cellSize;
   final bool isStar;
   final GemSpecialKind? specialKind;
+  final double comboScale;
   double elapsed = 0;
 
   double get duration =>
       specialKind != null ? 0.48 : isStar ? 0.42 : 0.32;
   double get t => (elapsed / duration).clamp(0.0, 1.0);
-  int get particleCount => specialKind != null ? 8 : isStar ? 7 : 5;
+  int get particleCount =>
+      ((specialKind != null ? 8 : isStar ? 7 : 5) * comboScale).round().clamp(5, 20);
   double get maxRadius =>
-      cellSize * (specialKind != null ? 1.1 : isStar ? 0.9 : 0.65);
+      cellSize * (specialKind != null ? 1.1 : isStar ? 0.9 : 0.65) * comboScale;
+}
+
+class _ImpactRing {
+  _ImpactRing({
+    required this.center,
+    required this.color,
+    required this.radius,
+  });
+
+  final Offset center;
+  final Color color;
+  final double radius;
+  static const double duration = 0.38;
+  double elapsed = 0;
+
+  bool get isDone => elapsed >= duration;
+  double get t => (elapsed / duration).clamp(0.0, 1.0);
+  double get currentRadius =>
+      ui.lerpDouble(0, radius, Curves.easeOut.transform(t))!;
+  double get alpha => (1.0 - t).clamp(0.0, 1.0);
+}
+
+class _ComboBanner {
+  _ComboBanner({
+    required this.count,
+    required this.color,
+  });
+
+  final int count;
+  final Color color;
+  static const double duration = 1.2;
+  double elapsed = 0;
+
+  double get t => (elapsed / duration).clamp(0.0, 1.0);
+
+  String get label => count >= 5 ? 'MEGA COMBO x$count' : 'COMBO x$count';
+
+  double get scale {
+    if (t < 0.15) {
+      return 0.4 + (0.7 * Curves.easeOutBack.transform(t / 0.15));
+    }
+    return 1.0;
+  }
+
+  double get alpha {
+    if (t < 0.8) {
+      return 1.0;
+    }
+    return 1.0 - ((t - 0.8) / 0.2);
+  }
+
+  double get yDrift => t < 0.8 ? 0.0 : -20.0 * ((t - 0.8) / 0.2);
 }
 
 class _SynergyBanner {
@@ -3281,26 +3728,41 @@ class _Projectile {
     required this.startPos,
     required this.targetPos,
     required this.color,
-    required this.arcHeight,
+    required this.fieldWidth,
+    required this.travelHeight,
+    required this.arcHeightFactor,
+    required this.arcBias,
     required this.duration,
   });
 
   final Offset startPos;
   final Offset targetPos;
   final Color color;
-  final double arcHeight;
+  final double fieldWidth;
+  final double travelHeight;
+  final double arcHeightFactor;
+  final double arcBias;
   final double duration;
   double elapsed = 0;
 
   bool get isDone => elapsed >= duration;
 
-  double get _t => (elapsed / duration).clamp(0.0, 1.0);
+  double get progress => (elapsed / duration).clamp(0.0, 1.0);
 
-  Offset get currentPos {
-    final double t = _t;
-    final Offset linear = Offset.lerp(startPos, targetPos, t)!;
-    return linear + Offset(0, -arcHeight * 4 * t * (1 - t));
+  Offset positionAt(double t) {
+    return ProjectilePathGeometry.pointAt(
+      start: startPos,
+      end: targetPos,
+      progress: t,
+      fieldWidth: fieldWidth,
+      travelHeight: travelHeight,
+      arcHeight: arcHeightFactor,
+      arcBias: arcBias,
+    );
   }
 
-  double get alpha => _t < 0.85 ? 1.0 : 1.0 - ((_t - 0.85) / 0.15);
+  Offset get currentPos => positionAt(progress);
+
+  double get alpha =>
+      progress < 0.85 ? 1.0 : 1.0 - ((progress - 0.85) / 0.15);
 }
