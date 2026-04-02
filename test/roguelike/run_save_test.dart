@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:match_fantasy/roguelike/models/map_node.dart';
+import 'package:match_fantasy/roguelike/models/reward_offer.dart';
 import 'package:match_fantasy/roguelike/models/run_map.dart';
+import 'package:match_fantasy/roguelike/models/shop_offer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:match_fantasy/roguelike/data/classes_data.dart';
 import 'package:match_fantasy/roguelike/data/relics_data.dart';
@@ -64,6 +66,18 @@ void main() {
       );
       run.earnGold(50);
       run.takeDamage(5);
+      run.setPendingRewards(const <RewardOffer>[
+        RewardOffer.card(cardId: 'burst_boost'),
+        RewardOffer.relic(relicId: 'shield_core'),
+        RewardOffer.gold(goldAmount: 28),
+      ]);
+      run.setShopOffersForNode(
+        'shop_2_1',
+        const <ShopOffer>[
+          ShopOffer.card(cardId: 'board_refresh', basePrice: 96),
+          ShopOffer.heal(basePrice: 50, healAmount: 15, isPurchased: true),
+        ],
+      );
 
       final json = run.toSaveJson();
       final restored = RunState();
@@ -79,6 +93,14 @@ void main() {
       expect(restored.currentNodeId, run.currentNodeId);
       expect(restored.actNumber, run.actNumber);
       expect(restored.cards.map((c) => c.id), run.cards.map((c) => c.id));
+      expect(restored.pendingRewards, hasLength(3));
+      expect(restored.pendingRewards.first.cardId, 'burst_boost');
+      expect(restored.pendingRewards[1].relicId, 'shield_core');
+      expect(restored.pendingRewards[2].goldAmount, 28);
+      expect(restored.pendingShopNodeId, 'shop_2_1');
+      expect(restored.pendingShopOffers, hasLength(2));
+      expect(restored.pendingShopOffers.first.cardId, 'board_refresh');
+      expect(restored.pendingShopOffers.last.isPurchased, true);
     });
 
     test('endRun sets isActive false', () async {

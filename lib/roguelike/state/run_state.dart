@@ -7,6 +7,8 @@ import 'package:match_fantasy/roguelike/data/cards_data.dart';
 import 'package:flutter/foundation.dart';
 import 'package:match_fantasy/roguelike/models/player_class.dart';
 import 'package:match_fantasy/roguelike/models/relic.dart';
+import 'package:match_fantasy/roguelike/models/reward_offer.dart';
+import 'package:match_fantasy/roguelike/models/shop_offer.dart';
 import 'package:match_fantasy/roguelike/models/upgrade_card.dart';
 import 'package:match_fantasy/roguelike/models/run_map.dart';
 
@@ -26,6 +28,9 @@ class RunState extends ChangeNotifier {
   bool temporaryShopDiscount = false;
   int totalKills = 0;
   int maxCombo = 0;
+  List<RewardOffer> pendingRewards = <RewardOffer>[];
+  String? pendingShopNodeId;
+  List<ShopOffer> pendingShopOffers = <ShopOffer>[];
 
   void setSelectedClass(PlayerClass cls) {
     selectedClass = cls;
@@ -50,6 +55,9 @@ class RunState extends ChangeNotifier {
     temporaryShopDiscount = false;
     totalKills = 0;
     maxCombo = 0;
+    pendingRewards = <RewardOffer>[];
+    pendingShopNodeId = null;
+    pendingShopOffers = <ShopOffer>[];
     notifyListeners();
   }
 
@@ -127,6 +135,37 @@ class RunState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setPendingRewards(List<RewardOffer> rewards) {
+    pendingRewards = List<RewardOffer>.of(rewards);
+    notifyListeners();
+  }
+
+  void clearPendingRewards() {
+    pendingRewards = <RewardOffer>[];
+    notifyListeners();
+  }
+
+  void setShopOffersForNode(String nodeId, List<ShopOffer> offers) {
+    pendingShopNodeId = nodeId;
+    pendingShopOffers = List<ShopOffer>.of(offers);
+    notifyListeners();
+  }
+
+  void clearPendingShopOffers() {
+    pendingShopNodeId = null;
+    pendingShopOffers = <ShopOffer>[];
+    notifyListeners();
+  }
+
+  void markShopOfferPurchased(String offerId) {
+    pendingShopOffers = pendingShopOffers
+        .map((offer) => offer.id == offerId
+            ? offer.copyWith(isPurchased: true)
+            : offer)
+        .toList();
+    notifyListeners();
+  }
+
   bool get isDead => health <= 0;
   bool hasRelic(String id) => relics.any((r) => r.id == id);
 
@@ -146,6 +185,13 @@ class RunState extends ChangeNotifier {
     'temporaryShopDiscount': temporaryShopDiscount,
     'totalKills': totalKills,
     'maxCombo': maxCombo,
+    'pendingRewards': <Map<String, dynamic>>[
+      for (final reward in pendingRewards) reward.toJson(),
+    ],
+    'pendingShopNodeId': pendingShopNodeId,
+    'pendingShopOffers': <Map<String, dynamic>>[
+      for (final offer in pendingShopOffers) offer.toJson(),
+    ],
   };
 
   void fromSaveJson(Map<String, dynamic> j) {
@@ -163,6 +209,15 @@ class RunState extends ChangeNotifier {
     temporaryShopDiscount = (j['temporaryShopDiscount'] as bool?) ?? false;
     totalKills = (j['totalKills'] as int?) ?? 0;
     maxCombo = (j['maxCombo'] as int?) ?? 0;
+    pendingRewards = <RewardOffer>[
+      for (final reward in j['pendingRewards'] as List<dynamic>? ?? const <dynamic>[])
+        RewardOffer.fromJson(reward as Map<String, dynamic>),
+    ];
+    pendingShopNodeId = j['pendingShopNodeId'] as String?;
+    pendingShopOffers = <ShopOffer>[
+      for (final offer in j['pendingShopOffers'] as List<dynamic>? ?? const <dynamic>[])
+        ShopOffer.fromJson(offer as Map<String, dynamic>),
+    ];
     notifyListeners();
   }
 

@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:match_fantasy/game/models/block_type.dart';
 import 'package:match_fantasy/game/models/board_move_result.dart';
@@ -321,7 +323,9 @@ void main() {
       board
           .snapshot()
           .expand((List<GemTile> row) => row)
-          .any((GemTile tile) => tile.special == GemSpecialKind.line),
+          .any((GemTile tile) =>
+              tile.special == GemSpecialKind.line ||
+              tile.special == GemSpecialKind.cross),
       isTrue,
     );
   });
@@ -378,6 +382,61 @@ void main() {
             bonus.bonusType == MatchBonusType.lineBlast &&
             bonus.element == BlockType.ember,
       ),
+      isTrue,
+    );
+  });
+
+  test('overlapping 4-match groups create a cross special gem', () {
+    final BoardEngine board = BoardEngine.fromRows(
+      <List<GemTile>>[
+        <GemTile>[
+          gem(BlockType.bloom, 1),
+          gem(BlockType.spark, 1),
+          gem(BlockType.tide, 1),
+          gem(BlockType.tide, 1),
+          gem(BlockType.spark, 1),
+        ],
+        <GemTile>[
+          gem(BlockType.tide, 1),
+          gem(BlockType.tide, 1),
+          gem(BlockType.umbra, 1),
+          gem(BlockType.tide, 1),
+          gem(BlockType.umbra, 1),
+        ],
+        <GemTile>[
+          gem(BlockType.ember, 1),
+          gem(BlockType.tide, 1),
+          gem(BlockType.ember, 1),
+          gem(BlockType.tide, 1),
+          gem(BlockType.bloom, 1),
+        ],
+        <GemTile>[
+          gem(BlockType.tide, 1),
+          gem(BlockType.umbra, 1),
+          gem(BlockType.ember, 1),
+          gem(BlockType.tide, 1),
+          gem(BlockType.tide, 1),
+        ],
+        <GemTile>[
+          gem(BlockType.ember, 1),
+          gem(BlockType.spark, 1),
+          gem(BlockType.spark, 1),
+          gem(BlockType.spark, 1),
+          gem(BlockType.tide, 1),
+        ],
+      ],
+      random: Random(0),
+    );
+
+    board.trySwap(const GridPoint(0, 2), const GridPoint(1, 2));
+
+    expect(
+      board
+          .snapshot()
+          .expand((List<GemTile> row) => row)
+          .any((GemTile tile) =>
+              tile.special == GemSpecialKind.line ||
+              tile.special == GemSpecialKind.cross),
       isTrue,
     );
   });

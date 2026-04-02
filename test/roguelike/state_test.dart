@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:match_fantasy/roguelike/models/shop_offer.dart';
 import 'package:match_fantasy/roguelike/state/run_state.dart';
 import 'package:match_fantasy/roguelike/models/upgrade_card.dart';
 
@@ -38,6 +39,21 @@ void main() {
           description: '',
           effect: CardEffect(tag: CardEffectTag.burstDamage)));
       expect(state.cards.length, RunState.maxCards);
+    });
+
+    test('markShopOfferPurchased updates only the matching offer', () {
+      state.setShopOffersForNode(
+        'shop_a',
+        const <ShopOffer>[
+          ShopOffer.card(cardId: 'burst_boost', basePrice: 60),
+          ShopOffer.heal(basePrice: 50, healAmount: 15),
+        ],
+      );
+
+      state.markShopOfferPurchased('card:burst_boost');
+
+      expect(state.pendingShopOffers.first.isPurchased, true);
+      expect(state.pendingShopOffers.last.isPurchased, false);
     });
   });
 }
