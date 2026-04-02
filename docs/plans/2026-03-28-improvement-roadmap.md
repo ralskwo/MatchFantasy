@@ -88,13 +88,14 @@ Status: next
 
 ### Phase 6: Reward and Shop Metadata
 
-Status: next
+Status: completed in `f81a64b`
 
-- rarity metadata
-- weighted reward picking
-- weighted shop offers
-- persistent shop inventory by node
-- active replacement UX cleanup
+- `RewardRarity` enum (common/uncommon/rare/epic) with weight + basePrice
+- `RewardMetadata` maps card ids → rarity; relics via existing `RelicRarity`
+- `RewardOfferPicker`: weighted pick without replacement; 12% sale roll per shop item
+- `RewardOffer` / `ShopOffer` models with `toJson`/`fromJson`
+- `RunState`: `pendingRewards`, `pendingShopNodeId/Offers`, full save/load round-trip
+- `RewardScreen` / `ShopScreen` rewritten to use offer models and persistent inventory
 
 ### Phase 7: Battle Snapshot Persistence
 
@@ -107,7 +108,7 @@ Status: next
 ## Current Status Table
 
 | Item | Status | Reference |
-|---|---|---|
+| --- | --- | --- |
 | Phase 1 combat clarity | completed | historical |
 | Phase 2 combat depth | completed | historical |
 | Phase 3 roguelike surface | completed | historical |
@@ -116,7 +117,7 @@ Status: next
 | Phase 4-C run summary | completed | historical |
 | Phase 5-A battle VFX polish | completed | `7127d3d` |
 | Phase 5-B expanded presentation coverage | next | adoption plan |
-| Phase 6 reward and shop metadata | next | adoption plan |
+| Phase 6 reward and shop metadata | completed | `f81a64b` |
 | Phase 7 battle snapshot persistence | next | adoption plan |
 
 ## Validation Guardrail
