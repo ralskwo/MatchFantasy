@@ -19,14 +19,14 @@ class RewardOfferPicker {
     final cardCandidates = _availableCards(runState);
     final relicCandidates = _availableRelics(runState);
 
+    final cardPicks = _pickUnique(
+      _weightedCards(cardCandidates),
+      count: relicCandidates.isEmpty ? 2 : 1,
+      random: random,
+    );
+
     final rewards = <RewardOffer>[
-      RewardOffer.card(
-        cardId: _pickUnique(
-          _weightedCards(cardCandidates),
-          count: 1,
-          random: random,
-        ).first.id,
-      ),
+      RewardOffer.card(cardId: cardPicks[0].id),
       if (relicCandidates.isNotEmpty)
         RewardOffer.relic(
           relicId: _pickUnique(
@@ -36,13 +36,7 @@ class RewardOfferPicker {
           ).first.id,
         )
       else
-        RewardOffer.card(
-          cardId: _pickUnique(
-            _weightedCards(cardCandidates),
-            count: 1,
-            random: random,
-          ).first.id,
-        ),
+        RewardOffer.card(cardId: cardPicks[1].id),
       RewardOffer.gold(
         goldAmount: 18 + random.nextInt(17) + ((runState.actNumber - 1) * 4),
       ),

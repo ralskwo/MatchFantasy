@@ -309,10 +309,10 @@ class _ShopOfferVisual {
           badgeText: metadata.rarityLabel,
         );
       case ShopOfferKind.heal:
-        return const _ShopOfferVisual(
+        return _ShopOfferVisual(
           title: '치유',
-          subtitle: '+15 HP 회복',
-          color: Color(0xFF6ED39C),
+          subtitle: '+${offer.healAmount} HP 회복',
+          color: const Color(0xFF6ED39C),
         );
       case ShopOfferKind.removeCard:
         return const _ShopOfferVisual(
