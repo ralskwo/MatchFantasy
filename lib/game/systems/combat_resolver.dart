@@ -252,7 +252,6 @@ class CombatResolver {
         (isNova ? 14 + (bonus.size * 4) : 8 + (bonus.size * 2)) +
         starPower;
 
-    final double affinity = _affinityMultiplier(bonus.element, wave.frontMonsterKind);
     int magnitude = basePower;
     int defeated = 0;
     switch (bonus.element) {
@@ -260,7 +259,7 @@ class CombatResolver {
         magnitude = isNova ? max(18, (basePower * 0.85).round()) : basePower;
         defeated += isNova
             ? wave.damageAll(magnitude.toDouble())
-            : wave.damageFrontMonster(magnitude * affinity);
+            : wave.damageFrontMonster(magnitude.toDouble());
         break;
       case BlockType.tide:
         magnitude = isNova
@@ -275,7 +274,7 @@ class CombatResolver {
             : max(10, (basePower * 0.85).round());
         defeated += isNova
             ? wave.damageAll(magnitude.toDouble())
-            : wave.damageFrontMonster(magnitude * affinity);
+            : wave.damageFrontMonster(magnitude.toDouble());
         resources.heal(isNova ? 6 : 3);
         resources.addShield(isNova ? 5 : 3);
         break;
@@ -283,7 +282,7 @@ class CombatResolver {
         magnitude = isNova ? max(14, (basePower * 0.68).round()) : basePower;
         defeated += isNova
             ? wave.damageAll(magnitude.toDouble())
-            : wave.damageFrontMonster(magnitude * affinity);
+            : wave.damageFrontMonster(magnitude.toDouble());
         wave.applySlowToAll(
           factor: isNova ? 0.46 : 0.68,
           duration: isNova ? 2.8 : 1.9,

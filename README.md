@@ -1,16 +1,32 @@
-# match_fantasy
+# MatchFantasy
 
-A new Flutter project.
+`MatchFantasy` is a Flutter + Flame prototype for a portrait match-3 combat game with a lightweight roguelike meta loop.
 
-## Getting Started
+## Current Snapshot
 
-This project is a starting point for a Flutter application.
+- Core play: swipe or tap the board, build elemental bursts, and hold off monster waves
+- Meta loop: class selection, relic selection, map traversal, reward/shop/event/rest/combat routes, and run-end summary
+- Persistence: `MetaState` and `RunState` are stored with `shared_preferences`
+- Main development target: Windows portrait build, with Android and iOS intended later
 
-A few resources to get you started if this is your first Flutter project:
+## Documentation
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+- Shared guardrail: `AGENTS.md`, `CLAUDE.md`, `MEMORY.md`
+- Workflow rules: `docs/collaboration/WORKFLOW_GUARDRAIL.md`
+- Current project state: `docs/project/current-state.md`
+- Version log: `docs/versions/CHANGELOG.md`
+- Roadmap: `docs/plans/2026-03-28-improvement-roadmap.md`
+- Reference audit: `docs/reference/2026-03-28-sigil-descent-implementation-audit.md`
+- Adoption plan: `docs/plans/2026-03-28-sigil-descent-upgrade-adoption.md`
+- Presentation queue spec: `docs/superpowers/specs/2026-03-28-battle-presentation-queue.md`
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Development
+
+```bash
+flutter pub get
+flutter run -d windows
+flutter analyze --no-fatal-infos
+flutter test
+```
+
+See `docs/project/current-state.md` for known issues and current validation status.

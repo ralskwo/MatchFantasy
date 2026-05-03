@@ -29,4 +29,14 @@ class GamePalette {
     MonsterKind.brute => const Color(0xFFFF6B6B),
     MonsterKind.boss => const Color(0xFFFB5607),
   };
+
+  static Color comboColor(int count) {
+    if (count >= 5) {
+      return Colors.amber;
+    }
+    if (count >= 3) {
+      return const Color(0xFFFF6B35);
+    }
+    return secondaryAccent;
+  }
 }
