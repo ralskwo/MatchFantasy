@@ -62,3 +62,7 @@ MatchFantasy is a Flutter + Flame prototype that combines a grid-based match-3 b
 - Some Korean UI and data strings appear with encoding corruption in source files and should be normalized.
 - The newly implemented presentation queue does not yet drive every effect layer; synergy banners and burst floating-number timing are still partially legacy-driven.
 - The newly documented `sigil_descent` reference confirms that richer special combos, reward metadata, and battle snapshot persistence are the most valuable next upgrades.
+
+## Git Backup Hygiene — 2026-11-15
+
+The Git exclusion policy now protects local credentials and generated artifacts. This changes repository hygiene only. Application behavior, saves and prior validation dates remain unchanged.

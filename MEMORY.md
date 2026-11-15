@@ -2,8 +2,8 @@
 
 ## Latest Snapshot
 
-- Updated: 2026-03-28
-- Latest version note: `v0.2.0`
+- Updated: 2026-11-15
+- Latest version note: `v0.2.1`
 - Baseline commit: `e90f075`
 - Shared workflow: `docs/collaboration/WORKFLOW_GUARDRAIL.md`
 - External reference audit: `docs/reference/2026-03-28-sigil-descent-implementation-audit.md`
@@ -43,3 +43,7 @@
 - Update `docs/versions/` for every meaningful change.
 - Sync `docs/project/current-state.md` whenever architecture or verification status changes.
 - Keep external reference audits and adoption plans versioned when they change implementation direction.
+
+## Git Backup Hygiene (2026-11-15)
+
+Local credentials and generated artifacts are excluded from Git. Game behavior is unchanged; no new application test receipt is asserted. See the latest patch note.

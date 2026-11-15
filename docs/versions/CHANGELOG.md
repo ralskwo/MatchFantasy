@@ -1,6 +1,6 @@
 # MatchFantasy Version Log
 
-Latest version: `v0.2.0`
+Latest version: `v0.2.1`
 
 ## Versioning Rules
 
@@ -12,6 +12,7 @@ Latest version: `v0.2.0`
 
 | Version | Date | Type | Summary | Status | Note |
 |---------|------|------|---------|--------|------|
+| `v0.2.1` | 2026-11-15 | patch | Exclude local secrets and generated artifacts from Git backups | current | [note](2026-11-15-v0.2.1-git-secret-exclusions.md) |
 | `v0.2.0` | 2026-03-28 | minor | Implemented the first battle-presentation queue slice, added combo-banner playback, and restored a green test suite | current | [note](2026-03-28-v0.2.0-battle-presentation.md) |
 | `v0.1.1` | 2026-03-28 | patch | Added the `sigil_descent` implementation audit and a targeted MatchFantasy adoption plan | previous | [note](2026-03-28-v0.1.1-sigil-descent-audit.md) |
 | `v0.1.0` | 2026-03-28 | minor | Established shared documentation guardrail and captured the first repo baseline | previous | [note](2026-03-28-v0.1.0-baseline.md) |
